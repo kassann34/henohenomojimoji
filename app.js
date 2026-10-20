@@ -1475,15 +1475,125 @@
     if (b) switchTo(b.dataset.v);
   });
 
-  showSettings();
-  const roomParam = params.get("room");
-  if (roomParam) {
-    switchTo("online");
-    $("codeInput").value = roomParam.toUpperCase();
-    // アイコンの字が保存済みなら、招待リンクからそのまま入る
-    if ($("iconInput").value.trim()) Online.join(roomParam).catch(() => {});
-    else $("iconInput").focus();
-  } else {
-    switchTo("solo");
+  // ======================================================================
+  // 遊び方の案内（初めて開いたときと「？」ボタン）
+  // ======================================================================
+  const Intro = (() => {
+    const box = $("intro");
+    let page = 0, onClose = null;
+
+    /** 画ごとに少しずらした（福笑いらしい）並べ方 */
+    function wobbly(k, amount, seed) {
+      let x = seed;
+      const r = () => ((x = (x * 16807) % 2147483647) / 2147483647) - 0.5;
+      return groupsFor(k, "strokes").map((idx) => {
+        const b = measure(k, idx);
+        return [b.x + r() * 2 * amount, b.y + r() * 2 * amount];
+      });
+    }
+    const K = (c) => byChar(c) || DATA[0];
+
+    function pictures() {
+      const mori = K("森");
+      const all = `<g>${pathsOf(mori, allIdx(mori))}</g>`;
+      // おぜんに散らばった画
+      const scattered = groupsFor(mori, "strokes").slice(0, 7).map((idx, i) => {
+        const b = measure(mori, idx);
+        const tx = 8 + (i % 4) * 42 - b.x * 0.42, ty = 132 + Math.floor(i / 4) * 38 - b.y * 0.42;
+        return `<g transform="translate(${tx.toFixed(1)} ${ty.toFixed(1)}) scale(.42)">${pathsOf(mori, idx)}</g>`;
+      }).join("");
+      const yoji = ["福", "笑", "漢", "字"].map((c, i) => {
+        const k = K(c);
+        return { c, mode: "strokes", pos: wobbly(k, [3, 7, 10, 5][i], 11 + i), score: [96, 81, 58, 88][i] };
+      });
+      return [
+        `<div class="ipaper"><svg viewBox="0 0 109 109" xmlns="${NS}">${all}</svg><span class="icount">3</span></div>`,
+        `<svg class="ipic" viewBox="0 0 180 210" xmlns="${NS}">
+          <defs><pattern id="introStripe" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#2a3a6e"/><rect width="5" height="10" fill="#24325f"/></pattern></defs>
+          <rect x="35" y="4" width="110" height="110" fill="url(#introStripe)"/>
+          <text x="90" y="64" text-anchor="middle" class="icover">目隠し中</text>
+          <rect x="1" y="124" width="178" height="84" rx="8" class="itray"/>
+          <g class="itray-ink">${scattered}</g>
+          <path d="M150 150 C 175 120, 160 80, 120 70" class="iarrow"/>
+          <path d="M120 70 l 9 -1 M120 70 l 5 7" class="iarrow"/>
+        </svg>`,
+        `<div class="ipaper">${arrangementSvg(mori, "strokes", wobbly(mori, 6, 5), false)}<span class="istamp"><b>達筆</b>82点</span></div>`,
+        `<div class="isheet">${yojiSheet(yoji, "small")}</div>`,
+      ];
+    }
+
+    const PAGES = [
+      ["お手本を覚える", "3秒だけ、お題の漢字が出ます。形をよく覚えてください。"],
+      ["目隠しで、一画ずつ運ぶ", "半紙に目隠しがかかります。下の「おぜん」から画を1本ずつドラッグして、記憶をたよりに置いていきます。置いた画は見えなくなります。"],
+      ["目隠しをとって答え合わせ", "お手本との形の近さで採点されます。名人・達筆・まずまず・へのへの・もじもじ。"],
+      ["4字で、存在しない四字熟語", "4字そろうと、あなたの字をつなげた四字熟語と合計点のできあがり。「みんなで」なら、友だちと同じ字に同時に挑戦できます。"],
+    ];
+
+    function render() {
+      const pics = pictures();
+      const [title, text] = PAGES[page];
+      const last = page === PAGES.length - 1;
+      box.innerHTML = `
+        <div class="intro-card" role="dialog" aria-modal="true" aria-labelledby="introTitle" tabindex="-1">
+          <div class="intro-pic">${pics[page]}</div>
+          <div class="intro-step">${page + 1} / ${PAGES.length}</div>
+          <h2 id="introTitle">${title}</h2>
+          <p>${text}</p>
+          <div class="intro-nav">
+            <button type="button" class="btn small" data-act="skip">${last ? "もう一度見る" : "とばす"}</button>
+            <div class="intro-dots">${PAGES.map((_, i) => `<span class="${i === page ? "on" : ""}"></span>`).join("")}</div>
+            <button type="button" class="btn primary" data-act="next">${last ? "はじめる" : "次へ"}</button>
+          </div>
+        </div>`;
+      box.querySelector(".intro-card").focus();
+    }
+
+    function open(cb) {
+      page = 0;
+      onClose = cb || null;
+      box.hidden = false;
+      render();
+    }
+    function close() {
+      box.hidden = true;
+      box.innerHTML = "";
+      store.set("hhmm-intro-seen", true);
+      const cb = onClose;
+      onClose = null;
+      if (cb) cb();
+    }
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (e.target === box) return close();
+      if (!b) return;
+      if (b.dataset.act === "next") { if (page < PAGES.length - 1) { page++; render(); } else close(); }
+      else if (b.dataset.act === "skip") { if (page === PAGES.length - 1) { page = 0; render(); } else close(); }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (box.hidden) return;
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowRight" && page < PAGES.length - 1) { page++; render(); }
+      else if (e.key === "ArrowLeft" && page > 0) { page--; render(); }
+    });
+    $("helpBtn").addEventListener("click", () => open());
+    return { open, get seen() { return !!store.get("hhmm-intro-seen", false); } };
+  })();
+
+  function boot() {
+    const roomParam = params.get("room");
+    if (roomParam) {
+      switchTo("online");
+      $("codeInput").value = roomParam.toUpperCase();
+      // アイコンの字が保存済みなら、招待リンクからそのまま入る
+      if ($("iconInput").value.trim()) Online.join(roomParam).catch(() => {});
+      else $("iconInput").focus();
+    } else {
+      switchTo("solo");
+    }
   }
+
+  showSettings();
+  // 初めて開いたときは、案内を閉じてからゲームを始める（最初のお手本を見逃さないように）
+  if (Intro.seen) boot();
+  else Intro.open(boot);
 })();

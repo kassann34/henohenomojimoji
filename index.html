@@ -378,6 +378,45 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 .themebtn svg { width: 18px; height: 18px; }
 .themebtn:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
 
+
+/* 遊び方の案内 */
+.themebtn#helpBtn { font: 700 16px var(--font-body); }
+.intro {
+  position: fixed; inset: 0; z-index: 200; background: #000a; display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.intro-card {
+  width: min(420px, 100%); max-height: 100%; overflow-y: auto; box-sizing: border-box;
+  background: var(--kon); border: 1px solid var(--kon-line); border-radius: 16px; padding: 22px 20px 18px;
+  display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 50px #000a;
+}
+.intro-pic { height: 220px; display: grid; place-items: center; }
+.intro-step { font-size: 12px; letter-spacing: .14em; color: var(--kin); font-weight: 700; }
+.intro h2 { font-family: var(--font-display); font-weight: 400; font-size: min(21px, 5.4vw); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; color: var(--head); }
+.intro-card:focus { outline: none; }
+.intro p { margin: 0; font-size: 14px; line-height: 1.8; color: var(--text); min-height: 5.4em; }
+.intro-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.intro-dots { display: flex; gap: 6px; }
+.intro-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--kon-line); }
+.intro-dots span.on { background: var(--kin); }
+.ipaper { position: relative; width: 200px; height: 200px; background: var(--hanshi); box-shadow: 0 8px 22px #0007; }
+.ipaper svg { width: 100%; height: 100%; display: block; }
+.ipaper path, .ipic path:not(.iarrow) { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+.icount { position: absolute; top: 6px; right: 10px; color: var(--shu); font-family: var(--font-display); font-size: 20px; }
+.istamp {
+  position: absolute; right: 8px; bottom: 8px; width: 72px; height: 72px; border-radius: 50%;
+  border: 2.5px solid var(--shu); color: var(--shu); display: grid; place-content: center; text-align: center;
+  font-family: var(--font-display); font-size: 13px; line-height: 1.1; transform: rotate(-12deg); background: #f5f3ecbb;
+}
+.istamp b { font-weight: 400; font-size: 19px; display: block; }
+.ipic { width: 200px; height: 220px; overflow: visible; }
+.ipic .itray { fill: var(--tray-bg); stroke: var(--kon-line); stroke-dasharray: 4 3; }
+.ipic .itray-ink path { stroke: var(--tray-ink) !important; stroke-width: 9; }
+.ipic .icover { fill: #f5f3ec; font-family: var(--font-display); font-size: 14px; letter-spacing: .2em; }
+.ipic .iarrow { fill: none; stroke: var(--kin); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 5 4; }
+.ipic .iarrow + .iarrow { stroke-dasharray: none; }
+.isheet { width: 50px; }
+
 /* スマホでは詰めて、半紙とおぜんが1画面に収まるように */
 @media (max-width: 520px) {
   .wrap { gap: 8px; padding-block: 8px 24px; }
@@ -385,6 +424,9 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
   h1 { font-size: 21px; letter-spacing: .04em; white-space: nowrap; }
   h1 small { display: none; }
   header .row .label { display: none; }
+  header .row { flex-wrap: nowrap; gap: 6px; }
+  header .seg button { padding: 5px 10px; }
+  .themebtn { width: 30px; height: 30px; }
   .tabs button { padding: 6px; font-size: 14px; }
   .strip { gap: 8px 4px; padding-top: 4px; }
   .pl { width: 54px; }
@@ -408,6 +450,7 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
         <button type="button" id="blind-on" data-v="on" aria-pressed="true">あり</button>
         <button type="button" id="blind-off" data-v="off" aria-pressed="false">なし</button>
       </div>
+      <button type="button" class="themebtn" id="helpBtn" aria-label="遊び方を見る" title="遊び方">？</button>
       <button type="button" class="themebtn" id="themeBtn" aria-label="背景を白にする" title="背景の色">
         <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg>
       </button>
@@ -467,9 +510,11 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
     <p class="howto">お手本を覚えたら、目隠しをしたつもりで下のおぜんから一画ずつ半紙へ運びます。置いた画は見えなくなります。全部置いたら目隠しをとって、どれだけ元の字に近いか答え合わせ。4字できたら、あなたの字をつなげた「存在しない四字熟語」のできあがりです。</p>
   </div>
 
+  <div class="intro" id="intro" hidden></div>
+
   <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
 </div>
 
-<script src="kanji-data.js?v=202610201647" charset="utf-8"></script>
-<script src="firebase-config.js?v=202610201647" charset="utf-8"></script>
-<script src="app.js?v=202610201647" charset="utf-8"></script>
+<script src="kanji-data.js?v=202610201751" charset="utf-8"></script>
+<script src="firebase-config.js?v=202610201751" charset="utf-8"></script>
+<script src="app.js?v=202610201751" charset="utf-8"></script>
