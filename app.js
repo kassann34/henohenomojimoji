@@ -171,7 +171,7 @@
   }
 
   const Engine = (() => {
-    const st = { kanji: null, mode: "parts", blind: true, pieces: [], phase: "idle", ghost: null };
+    const st = { kanji: null, mode: "strokes", blind: true, pieces: [], phase: "idle", ghost: null };
     let hooks = {};
     let L = {};
     let timer = null;
@@ -180,7 +180,7 @@
     function layout() {
       const W = stage.clientWidth;
       const S = Math.min(W, 380);
-      const u = S / VB, gap = 14, trayH = Math.round(S * 0.85);
+      const u = S / VB, gap = 14, trayH = Math.round(S * 0.62);
       L = { W, S, u, bx: (W - S) / 2, trayTop: S + gap, trayH };
       stage.style.height = (S + gap + trayH) + "px";
       Object.assign(board.style, { left: L.bx + "px", width: S + "px", height: S + "px" });
@@ -296,7 +296,7 @@
       const el = $("status");
       const pre = hooks.prefix ? hooks.prefix() + "　" : "";
       if (st.phase === "preview") el.textContent = pre + "よく見て覚えてください";
-      else if (st.phase === "play") el.textContent = pre + `${placed} / ${total} パーツ`;
+      else if (st.phase === "play") el.textContent = pre + `${placed} / ${total} 画`;
       else if (st.phase === "reveal") el.textContent = pre + "答え合わせ";
       else el.textContent = "";
       if (st.phase === "play") {
@@ -366,8 +366,8 @@
         st.ghost.style.opacity = on ? "0" : "1";
         btn.textContent = on ? "お手本を重ねる" : "お手本を隠す";
       }];
-      setActions([ghostBtn, ...(hooks.afterReveal ? hooks.afterReveal() : [])]);
       hooks.onReveal && hooks.onReveal({ kanji: st.kanji, score, rank: rank[0], positions });
+      setActions([ghostBtn, ...(hooks.afterReveal ? hooks.afterReveal() : [])]);
     }
 
     /** お題が出ていない状態（待ち） */
@@ -413,25 +413,17 @@
   }
 
   // 設定（分け方・目隠し）のボタン
-  const settings = { mode: "parts", blind: true };
+  const settings = { mode: "strokes", blind: true }; // 分け方は「一画ずつ」に固定
   let onSettingsChange = () => {};
   function setSegValue(segId, value) {
     $(segId).querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === value)));
   }
   function showSettings() {
-    setSegValue("modeSeg", settings.mode);
     setSegValue("blindSeg", settings.blind ? "on" : "off");
   }
   function lockSettings(locked) {
-    document.querySelectorAll("#modeSeg button, #blindSeg button").forEach((b) => (b.disabled = locked));
+    document.querySelectorAll("#blindSeg button").forEach((b) => (b.disabled = locked));
   }
-  $("modeSeg").addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b || b.disabled) return;
-    settings.mode = b.dataset.v;
-    showSettings();
-    onSettingsChange();
-  });
   $("blindSeg").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b || b.disabled) return;
@@ -569,6 +561,8 @@
       const total = totalOf(s.items);
       const rank = yojiRank(total);
       $("status").textContent = "四字熟語のできあがり";
+      $("result").innerHTML = `<div class="title">「${s.items.map((it) => esc(it.c)).join("")}」</div><div class="note">合計 ${total} / ${SET_SIZE * 100}点・${rank[0]}</div>`;
+      $("result").hidden = false;
       $("yojiPanel").innerHTML = `
         <div class="yoji">
           ${yojiSheet(s.items, "big")}
@@ -771,7 +765,6 @@
 
       // 設定：親だけが変えられる（次のセットから反映）
       if (room.settings) {
-        settings.mode = room.settings.mode;
         settings.blind = !!room.settings.blind;
         showSettings();
       }
