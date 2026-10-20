@@ -1,7 +1,8 @@
 // へのへのもじもじ — 漢字福笑い
 // 1. Engine  : 半紙とパーツの描画、ドラッグ、採点（ひとりでも、みんなでも共通）
 // 2. Backend : 部屋のデータを置く場所（Firebase Realtime Database。?mock=1 のときは同じブラウザ内の疑似サーバー）
-// 3. Solo / Online : あそびかたごとの進行
+// 3. SetPlay : 4字で1セットの進行と、四字熟語の結果表示
+// 4. Solo / Online : あそびかたごとの進行
 (() => {
   "use strict";
   const DATA = window.KANJI_DATA || [];
@@ -274,20 +275,32 @@
       p.el.addEventListener("pointercancel", end);
     }
 
+    /** 半紙とおぜんを表示する（四字熟語の結果表示から戻るとき） */
+    function showStage() {
+      $("yojiPanel").hidden = true;
+      if (stage.hidden) { stage.hidden = false; layout(); }
+    }
+    function hideStage() {
+      clearInterval(timer);
+      clearPieces();
+      st.phase = "done";
+      stage.hidden = true;
+      $("result").hidden = true;
+    }
+
     const boardSvg = (inner, cls = "") => `<svg class="big ${cls}" viewBox="0 0 ${VB} ${VB}" xmlns="${NS}">${inner}</svg>`;
 
     function status() {
       const total = st.pieces.length;
       const placed = st.pieces.filter((p) => p.placed).length;
       const el = $("status");
-      if (st.phase === "preview") el.textContent = "よく見て覚えてください";
-      else if (st.phase === "play") el.textContent = `${placed} / ${total} パーツ`;
-      else if (st.phase === "reveal") el.textContent = "答え合わせ";
+      const pre = hooks.prefix ? hooks.prefix() + "　" : "";
+      if (st.phase === "preview") el.textContent = pre + "よく見て覚えてください";
+      else if (st.phase === "play") el.textContent = pre + `${placed} / ${total} パーツ`;
+      else if (st.phase === "reveal") el.textContent = pre + "答え合わせ";
       else el.textContent = "";
       if (st.phase === "play") {
-        const list = [[st.blind ? "目隠しをとる" : "答え合わせ", "primary", reveal, placed < total]];
-        if (hooks.skip) list.push(["やめて別の字", "", hooks.skip]);
-        setActions(list);
+        setActions([[st.blind ? "目隠しをとる" : "答え合わせ", "primary", reveal, placed < total]]);
       }
     }
 
@@ -300,6 +313,7 @@
       st.phase = "preview";
       st.ghost = null;
       $("result").hidden = true;
+      showStage();
       buildPieces();
       st.pieces.forEach((p) => (p.el.hidden = true));
       let n = 3;
@@ -363,6 +377,7 @@
       st.phase = "idle";
       st.kanji = null;
       $("result").hidden = true;
+      showStage();
       board.innerHTML = `<div class="waiting">${message}</div>`;
       status();
     }
@@ -380,7 +395,7 @@
 
     window.addEventListener("resize", layout);
     layout();
-    return { start, idle, setHooks, refreshActions, get phase() { return st.phase; }, get kanji() { return st.kanji; } };
+    return { start, idle, hideStage, setHooks, refreshActions, get phase() { return st.phase; }, get kanji() { return st.kanji; } };
   })();
 
   function addAction(text, cls, fn, disabled) {
@@ -487,58 +502,141 @@
   const onlineAvailable = useMock || !!window.FIREBASE_CONFIG;
 
   // ======================================================================
-  // 3a. Solo
+  // 3. セット（4字で1セット。最後に自分の作った字を四字熟語として並べる）
+  // ======================================================================
+  const SET_SIZE = 4;
+  const FIRST_KANJI = "顔";
+
+  /** ランダムに重ならない4字を選ぶ（first を指定すると1字目に固定） */
+  function randomChars(first) {
+    const chars = first && byChar(first) ? [first] : [];
+    while (chars.length < SET_SIZE) {
+      const c = DATA[Math.floor(Math.random() * DATA.length)].c;
+      if (!chars.includes(c)) chars.push(c);
+    }
+    return chars;
+  }
+
+  const toArr = (v) => (Array.isArray(v) ? v.filter(Boolean) : Object.keys(v || {}).sort((a, b) => a - b).map((k) => v[k]));
+  const totalOf = (items) => items.reduce((a, it) => a + (it.score || 0), 0);
+
+  function yojiRank(total) {
+    const avg = total / SET_SIZE;
+    return avg >= 90 ? ["名人", "四字とも見事。掛け軸にして飾れます。"]
+      : avg >= 75 ? ["達筆", "ちゃんと読める四字熟語です。意味はありません。"]
+      : avg >= 55 ? ["まずまず", "辞書には載っていませんが、それっぽい。"]
+      : avg >= 35 ? ["へのへの", "どこの国の言葉でしょう。"]
+      : ["もじもじ", "誰にも読めない、あなただけの四字熟語。"];
+  }
+
+  /** 自分の作った4字を縦長の半紙に並べた HTML。size: "big" | "small" */
+  function yojiSheet(items, size) {
+    const cells = items.map((it) => {
+      const k = byChar(it.c);
+      return `<div class="cell">${k ? arrangementSvg(k, it.mode, toArr(it.pos), false) : ""}</div>`;
+    }).join("");
+    const total = totalOf(items);
+    return `<div class="sheet ${size}">${cells}<div class="seal">${total}</div></div>`;
+  }
+
+  const SetPlay = (() => {
+    let s = null; // { chars, opts, items, cb, finished }
+
+    function begin(chars, opts, cb) {
+      s = { chars, opts: { ...opts }, items: [], cb: cb || {}, finished: false };
+      Engine.setHooks({
+        prefix: () => `${Math.min(s.items.length + 1, SET_SIZE)}字目 / ${SET_SIZE}`,
+        onReveal: ({ kanji, score, positions }) => {
+          s.items.push({ c: kanji.c, score, pos: positions, mode: s.opts.mode });
+          s.cb.onItem && s.cb.onItem(s.items.length - 1, s.items[s.items.length - 1]);
+        },
+        afterReveal: () => s.items.length < SET_SIZE
+          ? [[`次の字へ（${s.items.length + 1}字目）`, "primary", next]]
+          : [["四字熟語を見る", "primary", finish]],
+      });
+      next();
+    }
+
+    function next() {
+      if (!s) return;
+      if (s.items.length >= SET_SIZE) return finish();
+      Engine.start(byChar(s.chars[s.items.length]), s.opts);
+    }
+
+    function finish() {
+      s.finished = true;
+      Engine.hideStage();
+      const total = totalOf(s.items);
+      const rank = yojiRank(total);
+      $("status").textContent = "四字熟語のできあがり";
+      $("yojiPanel").innerHTML = `
+        <div class="yoji">
+          ${yojiSheet(s.items, "big")}
+          <div class="yoji-side">
+            <div class="yoji-label">存在しない四字熟語</div>
+            <div class="yoji-orig">${s.items.map((it) => esc(it.c)).join("")}</div>
+            <ol class="yoji-scores">
+              ${s.items.map((it) => `<li><span>${esc(it.c)}</span><b>${it.score}</b>点</li>`).join("")}
+            </ol>
+            <div class="yoji-total"><span>合計</span><b>${total}</b><span>/ ${SET_SIZE * 100}点</span></div>
+            <div class="yoji-rank">${rank[0]}</div>
+            <p class="note">${rank[1]}</p>
+          </div>
+        </div>`;
+      $("yojiPanel").hidden = false;
+      setActions(s.cb.finalActions ? s.cb.finalActions() : []);
+      s.cb.onDone && s.cb.onDone(s.items, total);
+    }
+
+    /** 設定が変わったとき：次の字から反映。いま解き始める前なら、その字からやり直す */
+    function updateOpts(opts) {
+      if (!s) return;
+      s.opts = { ...opts };
+      if (!s.finished && (Engine.phase === "preview" || Engine.phase === "play")) next();
+    }
+
+    function refreshActions() {
+      if (!s) return;
+      if (s.finished) setActions(s.cb.finalActions ? s.cb.finalActions() : []);
+      else Engine.refreshActions();
+    }
+
+    return {
+      begin, updateOpts, refreshActions,
+      stop() { s = null; Engine.setHooks({}); },
+      get active() { return !!s; },
+      get finished() { return !!(s && s.finished); },
+    };
+  })();
+
+  // ======================================================================
+  // 4a. Solo
   // ======================================================================
   const Solo = (() => {
-    const cleared = new Set(store.get("hhmm-cleared", []));
-    function pickNext(current) {
-      const rest = DATA.filter((k) => k !== current && !cleared.has(k.c));
-      const pool = rest.length ? rest : DATA.filter((k) => k !== current);
-      return pool[Math.floor(Math.random() * pool.length)];
-    }
-    function renderChips() {
-      const box = $("chips");
-      box.innerHTML = "";
-      DATA.forEach((k) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = k.c;
-        b.title = k.strokes.length + "画";
-        if (cleared.has(k.c)) b.className = "done";
-        b.addEventListener("click", () => go(k));
-        box.appendChild(b);
+    let firstSet = true;
+    function newSet() {
+      const chars = randomChars(firstSet ? FIRST_KANJI : null);
+      firstSet = false;
+      SetPlay.begin(chars, settings, {
+        finalActions: () => [["もう一セット", "primary", newSet]],
       });
     }
-    function go(k) { Engine.start(k, settings); }
     function enter() {
-      Engine.setHooks({
-        skip: () => go(pickNext(Engine.kanji)),
-        afterReveal: () => [
-          ["もう一回", "", () => go(Engine.kanji)],
-          ["次の漢字", "primary", () => go(pickNext(Engine.kanji))],
-        ],
-        onReveal: ({ kanji }) => {
-          cleared.add(kanji.c);
-          store.set("hhmm-cleared", [...cleared]);
-          renderChips();
-        },
-      });
       lockSettings(false);
-      onSettingsChange = () => { if (Engine.kanji) go(Engine.kanji); };
-      renderChips();
-      go(Engine.kanji || byChar("顔") || DATA[0]);
+      onSettingsChange = () => SetPlay.updateOpts(settings);
+      newSet();
     }
     return { enter };
   })();
 
   // ======================================================================
-  // 3b. Online（同じお題を全員で同時に解き、結果を見せ合う）
+  // 4b. Online（同じ4字を全員が各自のペースで解き、四字熟語を見せ合う）
   //   rooms/{CODE} = {
   //     host, createdAt,
-  //     settings: { mode, blind },
-  //     round: { n, kanji, mode, blind },          // n = 0 は待合室
+  //     settings: { mode, blind },                       // 親が次のセットのために選んでいる設定
+  //     round: { n, chars: "顔晶森愛", mode, blind },     // n = 0 は待合室
   //     players/{pid}: { name, joinedAt },
-  //     results/{n}/{pid}: { name, score, rank, pos: [[x,y],...] }
+  //     results/{n}/{pid}: { name, items: [{ c, score, pos, mode }], total, done }
   //   }
   // ======================================================================
   const Online = (() => {
@@ -597,6 +695,7 @@
       store.set("hhmm-name", n);
       return n;
     }
+    const nameInRoom = () => (o.room && o.room.players && o.room.players[pid] && o.room.players[pid].name) || store.get("hhmm-name", "") || "ななし";
 
     async function create() {
       showError("");
@@ -651,6 +750,7 @@
       if (o.be && o.code) await o.be.remove(`rooms/${o.code}/players/${pid}`);
       o.code = null;
       o.room = null;
+      SetPlay.stop();
       const u = new URL(location.href);
       u.searchParams.delete("room");
       history.replaceState(null, "", u);
@@ -663,14 +763,13 @@
       o.room = room;
       // 自分が一覧から消えていたら（通信が切れた後など）入り直す
       if (!room.players || !room.players[pid]) {
-        const name = store.get("hhmm-name", "") || "ななし";
-        o.be.set(`rooms/${o.code}/players/${pid}`, { name, joinedAt: Date.now() });
+        o.be.set(`rooms/${o.code}/players/${pid}`, { name: nameInRoom(), joinedAt: Date.now() });
         return;
       }
       const host = isHost();
       if (host && room.host !== pid && !room.players[room.host]) o.be.update(`rooms/${o.code}`, { host: pid });
 
-      // 設定：親だけが変えられる
+      // 設定：親だけが変えられる（次のセットから反映）
       if (room.settings) {
         settings.mode = room.settings.mode;
         settings.blind = !!room.settings.blind;
@@ -680,17 +779,26 @@
 
       const round = room.round || { n: 0 };
       const results = (room.results && room.results[round.n]) || {};
-      renderPlayers(room, results);
+      renderPlayers(room, round, results);
 
       if (round.n > 0 && round.n !== o.startedRound) {
         o.startedRound = round.n;
-        const k = byChar(round.kanji);
-        if (k) Engine.start(k, { mode: round.mode, blind: !!round.blind });
+        const chars = Array.from(round.chars || "");
+        SetPlay.begin(chars, { mode: round.mode, blind: !!round.blind }, {
+          onItem: (i, item) => {
+            o.be.update(`rooms/${o.code}/results/${round.n}/${pid}`, { name: nameInRoom(), [`items/${i}`]: item });
+          },
+          onDone: (items, total) => {
+            o.be.update(`rooms/${o.code}/results/${round.n}/${pid}`, { name: nameInRoom(), total, done: true });
+          },
+          finalActions: () => (isHost() ? [["次のセット", "primary", nextRound]] : []),
+        });
       } else if (round.n === 0) {
         Engine.idle(waitingText(host));
         setActions(host ? [["はじめる", "primary", nextRound]] : []);
+      } else {
+        SetPlay.refreshActions();
       }
-      if (Engine.phase === "reveal") Engine.refreshActions();
       renderGallery(round, results);
     }
 
@@ -700,31 +808,34 @@
         : "親（部屋を作った人）が<br>はじめるのを待っています";
     }
 
-    function renderPlayers(room, results) {
+    function renderPlayers(room, round, results) {
       const box = $("players");
       const list = Object.entries(room.players || {}).sort((a, b) => a[1].joinedAt - b[1].joinedAt);
       const hostId = room.players[room.host] ? room.host : (list[0] && list[0][0]);
       box.innerHTML = list.map(([id, p]) => {
-        const cls = [id === pid ? "me" : "", results[id] ? "done" : "", id === hostId ? "host" : ""].join(" ");
-        return `<span class="${cls}">${esc(p.name)}</span>`;
+        const r = results[id];
+        const done = r && r.done;
+        const prog = round.n > 0 && r && !done ? ` ${toArr(r.items).length}/${SET_SIZE}` : "";
+        const cls = [id === pid ? "me" : "", done ? "done" : "", id === hostId ? "host" : ""].join(" ");
+        return `<span class="${cls}">${esc(p.name)}${prog}</span>`;
       }).join("");
-      const n = (room.round && room.round.n) || 0;
-      const done = list.filter(([id]) => results[id]).length;
-      if (n > 0) $("status").textContent = Engine.phase === "reveal" ? `${done} / ${list.length} 人が完成` : $("status").textContent;
+      if (round.n > 0 && SetPlay.finished) {
+        const doneN = list.filter(([id]) => results[id] && results[id].done).length;
+        $("status").textContent = `${doneN} / ${list.length} 人の四字熟語が完成`;
+      }
     }
 
     function renderGallery(round, results) {
       const panel = $("galleryPanel");
-      const entries = Object.entries(results);
-      // 自分が答え合わせを終えるまでは、他の人の作品は見せない
-      if (!round.n || !results[pid] || !entries.length) { panel.hidden = true; return; }
-      const k = byChar(round.kanji);
-      entries.sort((a, b) => b[1].score - a[1].score);
-      const best = entries[0][1].score;
+      const entries = Object.entries(results).filter(([, r]) => r.done);
+      // 自分の四字熟語ができるまでは、他の人の作品は見せない
+      if (!round.n || !results[pid] || !results[pid].done || !entries.length) { panel.hidden = true; return; }
+      entries.sort((a, b) => (b[1].total || 0) - (a[1].total || 0));
+      const best = entries[0][1].total;
       $("gallery").innerHTML = entries.map(([id, r]) => `
-        <figure class="${r.score === best ? "top" : ""}">
-          ${arrangementSvg(k, round.mode, r.pos || [], false)}
-          <figcaption><span class="who">${esc(r.name)}${id === pid ? "（あなた）" : ""}</span><span class="pt">${r.score}点・${esc(r.rank)}</span></figcaption>
+        <figure class="${r.total === best ? "top" : ""}">
+          ${yojiSheet(toArr(r.items), "small")}
+          <figcaption><span class="who">${esc(r.name)}${id === pid ? "（あなた）" : ""}</span><span class="pt">${r.total}点・${esc(yojiRank(r.total)[0])}</span></figcaption>
         </figure>`).join("");
       panel.hidden = false;
     }
@@ -732,13 +843,10 @@
     async function nextRound() {
       const r = o.room;
       if (!r || !isHost()) return;
-      const used = new Set(Object.values(r.usedKanji || {}));
-      const pool = DATA.filter((k) => !used.has(k.c));
-      const k = (pool.length ? pool : DATA)[Math.floor(Math.random() * (pool.length || DATA.length))];
       const n = ((r.round && r.round.n) || 0) + 1;
+      const chars = randomChars(n === 1 ? FIRST_KANJI : null);
       await o.be.update(`rooms/${o.code}`, {
-        round: { n, kanji: k.c, mode: settings.mode, blind: settings.blind },
-        [`usedKanji/${n}`]: k.c,
+        round: { n, chars: chars.join(""), mode: settings.mode, blind: settings.blind },
         // 古い結果は消して部屋を軽く保つ
         [`results/${n - 2}`]: null,
       });
@@ -746,18 +854,11 @@
 
     function enter() {
       o.active = true;
+      SetPlay.stop();
+      o.startedRound = 0;
       $("joinView").hidden = !!o.code;
       $("roomView").hidden = !o.code;
       $("soloPanel").hidden = true;
-      Engine.setHooks({
-        onReveal: ({ score, rank, positions }) => {
-          const n = o.room && o.room.round && o.room.round.n;
-          if (!n || !o.code) return;
-          const name = (o.room.players[pid] && o.room.players[pid].name) || "ななし";
-          o.be.set(`rooms/${o.code}/results/${n}/${pid}`, { name, score, rank, pos: positions });
-        },
-        afterReveal: () => (isHost() ? [["次のお題", "primary", nextRound]] : []),
-      });
       onSettingsChange = () => {
         if (o.code && isHost()) o.be.update(`rooms/${o.code}`, { settings: { mode: settings.mode, blind: settings.blind } });
       };
@@ -779,6 +880,7 @@
 
     function exit() {
       o.active = false;
+      SetPlay.stop();
       $("joinView").hidden = true;
       $("roomView").hidden = true;
       $("galleryPanel").hidden = true;

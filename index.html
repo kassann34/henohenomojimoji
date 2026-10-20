@@ -58,15 +58,6 @@ h1 small { font-size: 13px; color: var(--kin); letter-spacing: .2em; margin-left
   border: 0; padding: 7px 14px; cursor: pointer;
 }
 .seg button[aria-pressed="true"] { background: var(--hanshi); color: var(--sumi); font-weight: 700; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips button {
-  font-family: var(--font-display); font-size: 20px; width: 40px; height: 40px;
-  background: var(--kon-deep); color: var(--hanshi); border: 1px solid var(--kon-line);
-  border-radius: 6px; cursor: pointer;
-}
-.chips button:hover { border-color: var(--kin); }
-.chips button.done { color: var(--kin); }
-
 /* ゲーム台 */
 #stage { position: relative; width: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
 #board {
@@ -137,7 +128,7 @@ svg.big .ghost path { stroke: var(--shu); stroke-width: 3; opacity: .35; }
 }
 .btn.primary { background: var(--shu); border-color: var(--shu); color: #fff; }
 .btn:disabled { opacity: .4; cursor: default; }
-.btn:focus-visible, .seg button:focus-visible, .chips button:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
+.btn:focus-visible, .seg button:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
 .result { text-align: center; display: flex; flex-direction: column; gap: 4px; }
 .result .title { font-family: var(--font-display); font-size: 26px; color: var(--hanshi); }
 .result .note { color: var(--muted); font-size: 13px; }
@@ -183,15 +174,44 @@ footer a { color: inherit; }
 .seg button:disabled { cursor: default; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
 .gallery figure { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.gallery svg { width: 100%; aspect-ratio: 1; max-width: 100%; background: var(--hanshi); border-radius: 2px; display: block; }
-.gallery svg path { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
-.gallery svg .ghost path { stroke: var(--shu); stroke-width: 3; opacity: .25; }
 .gallery figcaption { font-size: 12px; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
 .gallery figcaption .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .gallery figcaption .pt { color: var(--kin); flex: none; }
-.gallery figure.top svg { box-shadow: 0 0 0 3px var(--kin); }
+.gallery figure.top .sheet { box-shadow: 0 0 0 3px var(--kin); }
 h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0; color: var(--hanshi); letter-spacing: .1em; }
 .waiting { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; color: #8a8576; font-size: 14px; line-height: 1.8; }
+
+/* 四字熟語（書き初めのような縦長の半紙） */
+.sheet {
+  box-sizing: border-box; background: var(--hanshi); display: flex; flex-direction: column; align-items: stretch;
+  padding: 10% 12% 6%; border-radius: 2px; box-shadow: 0 10px 30px #00000066; position: relative;
+}
+.sheet.big { width: min(62vw, 230px); flex: none; }
+.sheet.small { width: 100%; padding: 8% 10% 5%; box-shadow: 0 4px 12px #00000055; }
+.sheet .cell svg { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; }
+.sheet path { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+.sheet .seal {
+  align-self: flex-end; margin-top: 4%; padding: 1px 5px; border: 2px solid var(--shu); border-radius: 3px;
+  color: var(--shu); font-family: var(--font-display); font-size: 14px; line-height: 1.2; transform: rotate(-4deg);
+  font-variant-numeric: tabular-nums;
+}
+.sheet.small .seal { font-size: 11px; border-width: 1.5px; }
+.yoji { display: flex; gap: 22px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.yoji-side { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 0 1 220px; }
+.yoji-label { font-size: 11px; letter-spacing: .2em; color: var(--muted); }
+.yoji-orig { font-family: var(--font-display); font-size: 34px; letter-spacing: .12em; color: var(--hanshi); line-height: 1.2; }
+.yoji-scores { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; font-variant-numeric: tabular-nums; }
+.yoji-scores li { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); }
+.yoji-scores li span { font-family: var(--font-display); font-size: 18px; color: var(--hanshi); }
+.yoji-scores li b { font-weight: 700; color: var(--text); margin-left: auto; }
+.yoji-total { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.yoji-total b { font-family: var(--font-display); font-weight: 400; font-size: 44px; color: var(--kin); line-height: 1; }
+.yoji-rank {
+  align-self: flex-start; font-family: var(--font-display); font-size: 22px; color: var(--shu);
+  border: 2px solid var(--shu); border-radius: 4px; padding: 2px 10px; background: var(--hanshi); transform: rotate(-3deg);
+}
+.yoji-side .note { color: var(--muted); font-size: 13px; margin: 2px 0 0; line-height: 1.6; }
+.gallery { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 </style>
 
 <div class="wrap">
@@ -230,7 +250,7 @@ h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin
     <div class="row">
       <span class="label">分け方</span>
       <div class="seg" id="modeSeg">
-        <button type="button" id="mode-parts" data-v="parts" aria-pressed="true">部首ごと</button>
+        <button type="button" id="mode-parts" data-v="parts" aria-pressed="true">パーツごと</button>
         <button type="button" id="mode-strokes" data-v="strokes" aria-pressed="false">一画ずつ</button>
       </div>
     </div>
@@ -249,6 +269,7 @@ h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin
   </div>
 
   <div class="result" id="result" hidden></div>
+  <div class="panel" id="yojiPanel" hidden></div>
   <div class="actions" id="actions"></div>
 
   <div class="panel" id="galleryPanel" hidden>
@@ -257,9 +278,7 @@ h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin
   </div>
 
   <div class="panel" id="soloPanel">
-    <div class="row"><span class="label" style="width:auto">お題を選ぶ</span></div>
-    <div class="chips" id="chips"></div>
-    <p class="howto">お手本を覚えたら、目隠しをしたつもりで下のおぜんからパーツを半紙へ運びます。置いたパーツは見えなくなります。全部置いたら目隠しをとって、どれだけ元の字に近いか答え合わせ。</p>
+    <p class="howto">お手本を覚えたら、目隠しをしたつもりで下のおぜんからパーツを半紙へ運びます。置いたパーツは見えなくなります。全部置いたら目隠しをとって、どれだけ元の字に近いか答え合わせ。4字できたら、あなたの字をつなげた「存在しない四字熟語」のできあがりです。</p>
   </div>
 
   <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
