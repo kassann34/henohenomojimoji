@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="node_modules/@fontsource/yuji-syuku/index.css">
+<link rel="stylesheet" href="node_modules/@fontsource/zen-kaku-gothic-new/400.css">
+<link rel="stylesheet" href="node_modules/@fontsource/zen-kaku-gothic-new/700.css">
+<style>
+  html, body { margin: 0; }
+  .card {
+    width: 1200px; height: 630px; position: relative; overflow: hidden; box-sizing: border-box;
+    background: #1d2540;
+    background-image: radial-gradient(circle at 30% 0%, #2a3560 0%, transparent 65%);
+    color: #e9e6dc; font-family: "Zen Kaku Gothic New", sans-serif;
+  }
+  .left { position: absolute; left: 80px; top: 74px; width: 700px; }
+  .eyebrow { font-size: 30px; letter-spacing: .3em; color: #d9b45a; font-weight: 700; }
+  h1 { font-family: "Yuji Syuku", serif; font-weight: 400; font-size: 86px; letter-spacing: .04em; margin: 10px 0 22px; white-space: nowrap; color: #f5f3ec; line-height: 1.1; }
+  .lead { font-size: 33px; line-height: 1.55; margin: 0; color: #e9e6dc; }
+  .lead b { color: #f5f3ec; }
+  .tags { display: flex; gap: 12px; margin-top: 34px; }
+  .tags span { font-size: 24px; font-weight: 700; padding: 8px 22px; border-radius: 999px; border: 2px solid #3a466e; color: #c9cde0; }
+  .tags span.on { background: #c8372d; border-color: #c8372d; color: #fff; }
+  .sheet {
+    position: absolute; right: 128px; top: 26px; width: 166px; box-sizing: border-box;
+    background: #f5f3ec; padding: 22px 22px 14px; transform: rotate(3deg);
+    box-shadow: 0 18px 40px #000a; display: flex; flex-direction: column;
+  }
+  .sheet svg { width: 100%; aspect-ratio: 1; display: block; }
+  .sheet path { fill: none; stroke: #1b1b1f; stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }
+  .seal {
+    align-self: flex-end; margin-top: 6px; border: 3px solid #c8372d; color: #c8372d; border-radius: 4px;
+    font-family: "Yuji Syuku", serif; font-size: 22px; padding: 0 8px; transform: rotate(-5deg);
+  }
+  .stamp {
+    position: absolute; right: 296px; bottom: 38px; width: 140px; height: 140px; border-radius: 50%;
+    border: 5px solid #c8372d; color: #c8372d; display: grid; place-items: center; text-align: center;
+    font-family: "Yuji Syuku", serif; transform: rotate(-14deg); background: #f5f3ecdd; line-height: 1.05;
+  }
+  .stamp b { display: block; font-weight: 400; font-size: 34px; }
+  .stamp small { display: block; font-size: 26px; }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="left">
+    <div class="eyebrow">漢字福笑い</div>
+    <h1>へのへのもじもじ</h1>
+    <p class="lead">目隠しで、漢字を<b>一画ずつ</b>並べよう。<br>4字そろえば、<b>存在しない四字熟語</b><br>のできあがり。</p>
+    <div class="tags"><span class="on">ブラウザですぐ遊べる</span><span>ひとりで</span><span>みんなで</span></div>
+  </div>
+  <div class="sheet" id="sheet"><div class="seal">263</div></div>
+  <div class="stamp"><div><b>へのへの</b><small>263点</small></div></div>
+</div>
+<script src="../kanji-data.js"></script>
+<script>
+  // 福笑いらしく、画ごとに少しずらして描く（字ごとにずれの大きさを変える）
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;
+  const chars = ["福", "笑", "漢", "字"];
+  const wobble = [6, 11, 16, 9];
+  const sheet = document.getElementById("sheet");
+  const seal = sheet.querySelector(".seal");
+  chars.forEach((c, n) => {
+    const k = window.KANJI_DATA.find((x) => x.c === c);
+    const g = k.strokes.map((d) => {
+      const dx = (rnd() * 2 * wobble[n]).toFixed(1), dy = (rnd() * 2 * wobble[n]).toFixed(1);
+      return `<path transform="translate(${dx} ${dy})" d="${d}"/>`;
+    }).join("");
+    sheet.insertBefore(Object.assign(document.createElement("div"), { innerHTML: `<svg viewBox="0 0 109 109" xmlns="http://www.w3.org/2000/svg">${g}</svg>` }), seal);
+  });
+</script>
+</body>
+</html>
