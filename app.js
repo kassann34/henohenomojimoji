@@ -496,6 +496,21 @@
     list.forEach((a) => addAction(...a));
   }
 
+  // 背景（紺／白）
+  const isWhiteBg = () => document.documentElement.dataset.bg === "white";
+  function applyBg(white) {
+    if (white) document.documentElement.dataset.bg = "white";
+    else delete document.documentElement.dataset.bg;
+    $("themeBtn").setAttribute("aria-label", white ? "背景を紺にする" : "背景を白にする");
+  }
+  applyBg(store.get("hhmm-bg", "kon") === "white");
+  $("themeBtn").addEventListener("click", () => {
+    const white = !isWhiteBg();
+    applyBg(white);
+    store.set("hhmm-bg", white ? "white" : "kon");
+    if (typeof Online !== "undefined") Online.refreshTheme();
+  });
+
   // 設定（分け方・目隠し）のボタン
   const settings = { mode: "strokes", blind: true }; // 分け方は「一画ずつ」に固定
   let onSettingsChange = () => {};
@@ -773,15 +788,23 @@
     const RESULT_MS = FAST ? 3000 : 6000;   // 1字ごとの結果を見せる時間
     const GRACE_MS = 1500;    // 時間切れの答えが届くのを待つ余裕
     const CHAT_SHOW_MS = 8000;
+    // アイコンの色。実際の色は背景（紺／白）ごとに CSS の --col-○○ で決まる（紺の背景では墨が白になる）
     const COLORS = [
-      ["朱", "#c8372d"], ["藍", "#2f56b0"], ["若竹", "#2f8a55"], ["山吹", "#c98f00"],
-      ["紫", "#7d4fa8"], ["桃", "#d4588a"], ["茶", "#8a5a2b"], ["墨", "#3a3a44"],
+      ["朱", "shu"], ["藍", "ai"], ["若竹", "take"], ["山吹", "yamabuki"],
+      ["紫", "murasaki"], ["桃", "momo"], ["茶", "cha"], ["墨", "sumi"],
     ];
+    const OLD_HEX = { "#c8372d": "shu", "#2f56b0": "ai", "#2f8a55": "take", "#c98f00": "yamabuki", "#7d4fa8": "murasaki", "#d4588a": "momo", "#8a5a2b": "cha", "#3a3a44": "sumi" };
+    const colorKey = (c) => (COLORS.some(([, k]) => k === c) ? c : OLD_HEX[c] || "shu");
+    const cssColor = (c) => `var(--col-${colorKey(c)})`;
+    const colorName = (name, key) => (key === "sumi" && !isWhiteBg() ? "白" : name);
+    const colorButtons = (selected) => COLORS.map(([name, k]) =>
+      `<button type="button" role="radio" aria-checked="${k === colorKey(selected)}" aria-label="${colorName(name, k)}" title="${colorName(name, k)}" data-c="${k}" style="--c:${cssColor(k)}"></button>`).join("");
     const isKanji = (c) => /^\p{Script=Han}$/u.test(c);
     const o = {
       be: null, code: null, room: null, unsub: null, active: false,
       tutorial: false, playingKey: null, tick: null, hostBusy: false,
-      shownChat: new Set(), chatPrimed: false, meData: null, color: store.get("hhmm-color", null),
+      shownChat: new Set(), chatPrimed: false, meData: null,
+      color: store.get("hhmm-color", null) ? colorKey(store.get("hhmm-color", null)) : null,
     };
 
     // ---------- 共通 ----------
@@ -810,7 +833,7 @@
 
     function iconHtml(p, size) {
       const cls = "icon" + (size ? " " + size : "");
-      const color = (p && p.color) || COLORS[0][1];
+      const color = cssColor(p && p.color);
       const k = p && p.icon && byChar(p.icon.c);
       const inner = k
         ? arrangementSvg(k, "strokes", posList(p.icon.pos, k.strokes.length), false)
@@ -849,8 +872,7 @@
     // ---------- 参加フォーム ----------
     function renderColorPick() {
       if (!o.color) o.color = COLORS[Math.floor(Math.random() * COLORS.length)][1];
-      $("colorPick").innerHTML = COLORS.map(([name, c]) =>
-        `<button type="button" role="radio" aria-checked="${c === o.color}" aria-label="${name}" title="${name}" data-c="${c}" style="--c:${c}"></button>`).join("");
+      $("colorPick").innerHTML = colorButtons(o.color);
     }
     $("colorPick").addEventListener("click", (e) => {
       const b = e.target.closest("button");
@@ -862,18 +884,15 @@
 
     /** フォームから自分の参加者データを作る。足りないものがあれば null */
     function formPlayer() {
-      const name = $("nameInput").value.trim().slice(0, 12);
-      if (!name) { showError("なまえを入れてください。"); $("nameInput").focus(); return null; }
       const ch = $("iconInput").value.trim();
       if (!ch) { showError("アイコンにする好きな漢字を1字入れてください。"); $("iconInput").focus(); return null; }
       if (Array.from(ch).length !== 1 || !isKanji(ch)) { showError("アイコンの字は漢字1字にしてください。"); $("iconInput").focus(); return null; }
       if (!byChar(ch)) { showError(`「${ch}」は収録されていない字です。小学校で習う漢字から選んでください。`); $("iconInput").focus(); return null; }
-      store.set("hhmm-name", name);
       store.set("hhmm-iconchar", ch);
       // 同じ字のアイコンを前に作っていれば、それを使う（ロビーで作り直せる）
       const saved = store.get("hhmm-icon", null);
       const icon = saved && saved.c === ch ? saved : null;
-      return { name, color: o.color, iconChar: ch, icon, joinedAt: now() };
+      return { name: "", color: o.color, iconChar: ch, icon, joinedAt: now() };
     }
 
     async function create() {
@@ -949,7 +968,7 @@
       o.room = r;
       // 自分が一覧から消えていたら（通信が切れた後など）入り直す
       if (!r.players || !r.players[pid]) {
-        const p = { ...(o.meData || { name: "ななし", color: o.color, iconChar: "人", icon: null }), joinedAt: now() };
+        const p = { ...(o.meData || { name: "", color: o.color, iconChar: "人", icon: null }), joinedAt: now() };
         o.be.set(`rooms/${o.code}/players/${pid}`, p);
         return;
       }
@@ -1030,11 +1049,10 @@
           <p class="notice">アイコンにカーソルを合わせる（スマホはタップ）と、その人の前回の四字熟語が見られます。上の入力欄から、いつでも漢字1字でチャットできます。</p>
           <div class="remake">
             ${iconHtml(m, "")}
-            <input id="remakeInput" maxlength="2" placeholder="字" value="${esc(m.iconChar || "")}" style="width:3.2em;font-size:18px;padding:6px 8px;border-radius:8px;background:var(--kon-deep);color:var(--hanshi);border:1px solid var(--kon-line);font-family:var(--font-display)" aria-label="アイコンの字">
+            <input id="remakeInput" maxlength="2" placeholder="字" value="${esc(m.iconChar || "")}" style="width:3.2em;font-size:18px;padding:6px 8px;border-radius:8px;background:var(--kon-deep);color:var(--head);border:1px solid var(--kon-line);font-family:var(--font-display)" aria-label="アイコンの字">
             <button type="button" class="btn small" data-act="remake">アイコンを作り直す</button>
           </div>
-          <div class="colors" data-role="lobbyColors">${COLORS.map(([name, c]) =>
-            `<button type="button" role="radio" aria-checked="${c === m.color}" aria-label="${name}" title="${name}" data-c="${c}" style="--c:${c}"></button>`).join("")}</div>
+          <div class="colors" data-role="lobbyColors">${colorButtons(m.color)}</div>
           <p class="notice err" data-role="lobbyErr" hidden></p>
         </div>`);
       $("onlinePanel").hidden = false;
@@ -1075,7 +1093,7 @@
       const members = {};
       playerIds().forEach((id) => {
         const p = players()[id];
-        if (p.icon) members[id] = { name: p.name, color: p.color, icon: p.icon };
+        if (p.icon) members[id] = { color: p.color || "shu", icon: p.icon };
       });
       if (!Object.keys(members).length) return;
       await o.be.update(`rooms/${o.code}`, {
@@ -1122,7 +1140,7 @@
           const r = resultsAt(g.n, i)[id];
           return { c, score: r ? r.score : 0, pos: r ? r.pos : null, done: !!r };
         });
-        return { id, name: p.name || mb.name, color: p.color || mb.color, icon: p.icon || mb.icon, items, total: totalOf(items) };
+        return { id, color: p.color || mb.color, icon: p.icon || mb.icon, items, total: totalOf(items) };
       });
     }
 
@@ -1139,8 +1157,9 @@
         let acc = 0;
         const pts = [[x(0), y(0)]];
         r.items.slice(0, steps).forEach((it, i) => { acc += it.score; pts.push([x(i + 1), y(acc)]); });
-        g += `<polyline points="${pts.map((p) => p.join(",")).join(" ")}" fill="none" stroke="${r.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-        pts.slice(1).forEach(([px, py]) => { g += `<circle cx="${px}" cy="${py}" r="3.2" fill="${r.color}"/>`; });
+        const c = cssColor(r.color);
+        g += `<polyline points="${pts.map((p) => p.join(",")).join(" ")}" style="fill:none;stroke:${c}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+        pts.slice(1).forEach(([px, py]) => { g += `<circle cx="${px}" cy="${py}" r="3.2" style="fill:${c}"/>`; });
       });
       return `<svg viewBox="0 0 ${W} ${H}" xmlns="${NS}" role="img" aria-label="合計点の推移">${g}</svg>`;
     }
@@ -1161,7 +1180,7 @@
               const placedAny = it.done && k && posList(it.pos, k.strokes.length).some(validPos);
               const svg = placedAny ? arrangementSvg(k, "strokes", posList(it.pos, k.strokes.length), false) : `<span class="timeout">時間切れ</span>`;
               return `<figure class="card ${it.score === best && best > 0 ? "top" : ""}"><div class="sq">${svg}</div>
-                <figcaption>${iconHtml(r, "sm")}<span class="who">${esc(r.name)}${r.id === pid ? "（あなた）" : ""}</span><b>${it.score}</b></figcaption></figure>`;
+                <figcaption>${iconHtml(r, "sm")}<span class="who">${r.id === pid ? "あなた" : ""}</span><b>${it.score}</b></figcaption></figure>`;
             }).join("")}
           </div>
           <div class="graph">${lineGraph(rows, g.idx + 1)}</div>
@@ -1187,20 +1206,20 @@
             <div class="winner-side">
               <div class="yoji-label">優勝</div>
               ${iconHtml(win, "lg")}
-              <div class="winner-name">${esc(win.name)}${win.id === pid ? "（あなた）" : ""}</div>
+              ${win.id === pid ? `<div class="winner-name">あなた</div>` : ""}
               <div class="yoji-orig">${win.items.map((it) => esc(it.c)).join("")}</div>
               <div class="yoji-total"><b>${win.total}</b><span>/ ${SET_SIZE * 100}点</span></div>
             </div>
           </div>
           <ol class="ranking">
             ${rows.map((r) => `<li><span class="rk">${r.rank}位</span>${iconHtml(r, "sm")}
-              <span class="nm">${esc(r.name)}${r.id === pid ? "（あなた）" : ""}<small>${r.items.map((it) => `${esc(it.c)} ${it.score}`).join("・")}</small></span>
+              <span class="nm">${r.id === pid ? "あなた" : ""}<small>${r.items.map((it) => `${esc(it.c)} ${it.score}`).join("・")}</small></span>
               <span class="tt">${r.total}点</span></li>`).join("")}
           </ol>
           <div class="graph">${lineGraph(rows, SET_SIZE)}</div>
           ${rows.length > 1 ? `<h2>みんなの四字熟語</h2><div class="gallery">${rows.map((r) => `
             <figure class="${r.rank === 1 ? "top" : ""}">${yojiSheet(sheetItems(r), "small")}
-              <figcaption><span class="who">${esc(r.name)}</span><span class="pt">${r.total}点・${r.rank}位</span></figcaption></figure>`).join("")}</div>` : ""}
+              <figcaption><span class="who">${iconHtml(r, "sm")}${r.id === pid ? " あなた" : ""}</span><span class="pt">${r.total}点・${r.rank}位</span></figcaption></figure>`).join("")}</div>` : ""}
         </div>` : "");
       $("onlinePanel").hidden = false;
       setStatus("結果発表");
@@ -1305,9 +1324,9 @@
         if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
         el.classList.toggle("me", id === pid);
         el.classList.toggle("host", id === hid);
-        el.style.setProperty("--c", p.color || COLORS[0][1]);
+        el.style.setProperty("--c", cssColor(p.color));
         setHtml(el.querySelector(".pl-icon"), iconHtml(p, ""));
-        setHtml(el.querySelector(".pl-name"), esc(p.name) + (id === pid ? "" : ""));
+        setHtml(el.querySelector(".pl-name"), id === pid ? "あなた" : "");
         setHtml(el.querySelector(".pl-sub"), esc(subText(id, p)));
         const pop = el.querySelector(".pop");
         if (p.last && p.last.items) {
@@ -1363,7 +1382,8 @@
         const p = players()[m.pid] || {};
         const b = document.createElement("span");
         b.className = "bubble";
-        b.style.setProperty("--c", p.color || COLORS[0][1]);
+        b.style.setProperty("--c", cssColor(p.color));
+        if (colorKey(p.color) === "sumi") b.classList.add("sumi");
         b.textContent = m.c;
         el.appendChild(b);
         setTimeout(() => b.remove(), 4600);
@@ -1427,14 +1447,19 @@
       $("soloPanel").hidden = false;
     }
 
-    $("nameInput").value = store.get("hhmm-name", "");
     $("iconInput").value = store.get("hhmm-iconchar", "");
     $("createBtn").addEventListener("click", () => create().catch(() => {}));
     $("joinBtn").addEventListener("click", () => join($("codeInput").value).catch(() => {}));
     $("codeInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("joinBtn").click(); });
     $("leaveBtn").addEventListener("click", () => leave());
 
-    return { enter, exit, join };
+    /** 背景を切り替えたとき：色の名前（墨／白）を描き直す */
+    function refreshTheme() {
+      if (!$("joinView").hidden) renderColorPick();
+      if (o.active && o.room) { $("onlinePanel").__html = null; onRoom(o.room); }
+    }
+
+    return { enter, exit, join, refreshTheme };
   })();
 
   // ======================================================================
@@ -1455,9 +1480,9 @@
   if (roomParam) {
     switchTo("online");
     $("codeInput").value = roomParam.toUpperCase();
-    // なまえとアイコンの字が保存済みなら、招待リンクからそのまま入る
-    if ($("nameInput").value.trim() && $("iconInput").value.trim()) Online.join(roomParam).catch(() => {});
-    else ($("nameInput").value.trim() ? $("iconInput") : $("nameInput")).focus();
+    // アイコンの字が保存済みなら、招待リンクからそのまま入る
+    if ($("iconInput").value.trim()) Online.join(roomParam).catch(() => {});
+    else $("iconInput").focus();
   } else {
     switchTo("solo");
   }

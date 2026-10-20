@@ -17,16 +17,51 @@
   --kin: #d9b45a;        /* 金（お正月の差し色） */
   --text: #e9e6dc;
   --muted: #a3a8bd;
+  --head: #f5f3ec;         /* 見出しや目立たせたい文字 */
+  --seg-on: #f5f3ec;       /* 選んでいるボタン */
+  --seg-on-fg: #1b1b1f;
+  --tray-ink: #f5f3ec;     /* おぜんの上の画 */
+  --tray-bg: #ffffff06;
+  --icon-bg: #141a2e;      /* アイコンの台紙 */
+  --glow: #26305285;
+  --faint: #6f7593;
+  --err: #ff9b8f;
+  --bubble-sumi-fg: #141a2e;
+  /* アイコンの色（紺の背景では明るめ。墨は白になる） */
+  --col-shu: #ef6a5e; --col-ai: #7ea0ff; --col-take: #56c487; --col-yamabuki: #f2bd45;
+  --col-murasaki: #b996e6; --col-momo: #f383ad; --col-cha: #cf9a63; --col-sumi: #f5f3ec;
   --font-display: "Yuji Syuku", "Hiragino Mincho ProN", "Yu Mincho", serif;
   --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   color-scheme: dark;
+}
+/* 背景「白」 */
+:root[data-bg="white"] {
+  --kon: #fbfbf9;
+  --kon-deep: #efeee9;
+  --kon-line: #d9d7cf;
+  --kin: #9c7612;
+  --text: #26262b;
+  --muted: #676a77;
+  --head: #1b1b1f;
+  --seg-on: #1b1b1f;
+  --seg-on-fg: #ffffff;
+  --tray-ink: #1b1b1f;
+  --tray-bg: #00000005;
+  --icon-bg: #ffffff;
+  --glow: transparent;
+  --faint: #9a9caa;
+  --err: #c0392b;
+  --bubble-sumi-fg: #ffffff;
+  --col-shu: #c8372d; --col-ai: #2f56b0; --col-take: #2f8a55; --col-yamabuki: #b07c00;
+  --col-murasaki: #7d4fa8; --col-momo: #cc4a80; --col-cha: #8a5a2b; --col-sumi: #26262e;
+  color-scheme: light;
 }
 [hidden] { display: none !important; }
 html, body { height: 100%; }
 body { margin: 0; }
 body {
   background: var(--kon);
-  background-image: radial-gradient(circle at 50% 0%, #26305285 0%, transparent 60%);
+  background-image: radial-gradient(circle at 50% 0%, var(--glow) 0%, transparent 60%);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 15px;
@@ -43,7 +78,7 @@ body {
 header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 h1 {
   font-family: var(--font-display); font-weight: 400;
-  font-size: 30px; margin: 0; letter-spacing: .08em; color: var(--hanshi);
+  font-size: 30px; margin: 0; letter-spacing: .08em; color: var(--head);
 }
 h1 small { font-size: 13px; color: var(--kin); letter-spacing: .2em; margin-left: 8px; font-family: var(--font-body); }
 .status { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -57,7 +92,7 @@ h1 small { font-size: 13px; color: var(--kin); letter-spacing: .2em; margin-left
   font: inherit; font-size: 14px; color: var(--muted); background: transparent;
   border: 0; padding: 7px 14px; cursor: pointer;
 }
-.seg button[aria-pressed="true"] { background: var(--hanshi); color: var(--sumi); font-weight: 700; }
+.seg button[aria-pressed="true"] { background: var(--seg-on); color: var(--seg-on-fg); font-weight: 700; }
 /* ゲーム台 */
 #stage { position: relative; width: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
 #board {
@@ -78,14 +113,14 @@ h1 small { font-size: 13px; color: var(--kin); letter-spacing: .2em; margin-left
   position: absolute; inset: 0; display: grid; place-items: center;
   background:
     repeating-linear-gradient(45deg, #2a3a6e 0 10px, #24325f 10px 20px);
-  color: var(--hanshi); font-family: var(--font-display); font-size: 22px; letter-spacing: .2em;
+  color: #f5f3ec; font-family: var(--font-display); font-size: 22px; letter-spacing: .2em;
   transition: transform .9s cubic-bezier(.6,.05,.3,1), opacity .9s;
 }
 #board .cover.off { transform: translateY(-105%); opacity: .2; pointer-events: none; }
 #tray {
   position: absolute; left: 0; right: 0;
   border: 1px dashed var(--kon-line); border-radius: 10px;
-  background: #ffffff06;
+  background: var(--tray-bg);
 }
 #tray span { position: absolute; left: 10px; top: 6px; font-size: 11px; letter-spacing: .14em; color: var(--muted); }
 .piece { position: absolute; cursor: grab; touch-action: none; pointer-events: none; }
@@ -93,7 +128,7 @@ h1 small { font-size: 13px; color: var(--kin); letter-spacing: .2em; margin-left
 .piece.offboard svg { transform: scale(.6); } /* おぜんの上では小さく、半紙に乗せると原寸 */
 .piece path, svg.big path { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
 .piece.onboard path { stroke: var(--sumi); }
-.piece.offboard path { stroke: var(--hanshi); }
+.piece.offboard path { stroke: var(--tray-ink); }
 .piece.dragging { cursor: grabbing; z-index: 50; filter: drop-shadow(0 6px 8px #0008); }
 .piece.hiddenplace { opacity: 0; pointer-events: none; }
 .piece.reveal { transition: opacity .6s; }
@@ -130,10 +165,10 @@ svg.big .ghost path { stroke: var(--shu); stroke-width: 3; opacity: .35; }
 .btn:disabled { opacity: .4; cursor: default; }
 .btn:focus-visible, .seg button:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
 .result { text-align: center; display: flex; flex-direction: column; gap: 4px; }
-.result .title { font-family: var(--font-display); font-size: 26px; color: var(--hanshi); }
+.result .title { font-family: var(--font-display); font-size: 26px; color: var(--head); }
 .result .note { color: var(--muted); font-size: 13px; }
 .howto { color: var(--muted); font-size: 13px; line-height: 1.8; margin: 0; }
-footer { color: #6f7593; font-size: 11px; text-align: center; line-height: 1.6; }
+footer { color: var(--faint); font-size: 11px; text-align: center; line-height: 1.6; }
 footer a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .stamp { animation: none; }
@@ -146,16 +181,16 @@ footer a { color: inherit; }
   flex: 1; font: inherit; font-weight: 700; font-size: 15px; padding: 10px; cursor: pointer;
   background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid var(--kon-line);
 }
-.tabs button[aria-pressed="true"] { color: var(--hanshi); border-bottom-color: var(--kin); }
+.tabs button[aria-pressed="true"] { color: var(--head); border-bottom-color: var(--kin); }
 .field { display: flex; gap: 8px; flex-wrap: wrap; }
 .field input {
   font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 8px; min-width: 0; flex: 1 1 140px;
-  background: var(--kon-deep); color: var(--hanshi); border: 1px solid var(--kon-line);
+  background: var(--kon-deep); color: var(--head); border: 1px solid var(--kon-line);
 }
 .field input:focus-visible { outline: 2px solid var(--kin); outline-offset: 1px; }
 #codeInput { text-transform: uppercase; letter-spacing: .3em; font-variant-numeric: tabular-nums; flex: 0 1 130px; }
 .notice { font-size: 13px; color: var(--muted); line-height: 1.7; margin: 0; }
-.notice.err { color: #ff9b8f; }
+.notice.err { color: var(--err); }
 .roomcode { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .roomcode b { font-family: var(--font-display); font-weight: 400; font-size: 28px; letter-spacing: .25em; color: var(--kin); }
 .invite { display: flex; gap: 8px; align-items: center; min-width: 0; }
@@ -178,7 +213,7 @@ footer a { color: inherit; }
 .gallery figcaption .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .gallery figcaption .pt { color: var(--kin); flex: none; }
 .gallery figure.top .sheet { box-shadow: 0 0 0 3px var(--kin); }
-h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0; color: var(--hanshi); letter-spacing: .1em; }
+h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0; color: var(--head); letter-spacing: .1em; }
 .waiting { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; color: #8a8576; font-size: 14px; line-height: 1.8; }
 
 /* 四字熟語（書き初めのような縦長の半紙） */
@@ -199,10 +234,10 @@ h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin
 .yoji { display: flex; gap: 22px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .yoji-side { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 0 1 220px; }
 .yoji-label { font-size: 11px; letter-spacing: .2em; color: var(--muted); }
-.yoji-orig { font-family: var(--font-display); font-size: 34px; letter-spacing: .12em; color: var(--hanshi); line-height: 1.2; }
+.yoji-orig { font-family: var(--font-display); font-size: 34px; letter-spacing: .12em; color: var(--head); line-height: 1.2; }
 .yoji-scores { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; font-variant-numeric: tabular-nums; }
 .yoji-scores li { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); }
-.yoji-scores li span { font-family: var(--font-display); font-size: 18px; color: var(--hanshi); }
+.yoji-scores li span { font-family: var(--font-display); font-size: 18px; color: var(--head); }
 .yoji-scores li b { font-weight: 700; color: var(--text); margin-left: auto; }
 .yoji-total { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
 .yoji-total b { font-family: var(--font-display); font-weight: 400; font-size: 44px; color: var(--kin); line-height: 1; }
@@ -238,7 +273,7 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
   width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
   background: var(--c); box-shadow: inset 0 0 0 2px var(--kon);
 }
-.colors button[aria-checked="true"] { border-color: var(--hanshi); }
+.colors button[aria-checked="true"] { border-color: var(--head); }
 .colors button:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
 
 /* 参加者アイコン列 */
@@ -254,7 +289,7 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 .pl-icon { position: relative; }
 .icon {
   display: grid; place-items: center; width: 44px; height: 44px; box-sizing: border-box;
-  background: var(--hanshi); border: 2px solid var(--c); border-radius: 10px; overflow: hidden;
+  background: var(--icon-bg); border: 2px solid var(--c); border-radius: 10px; overflow: hidden;
 }
 .icon svg { width: 100%; height: 100%; display: block; }
 .icon path { fill: none; stroke: var(--c); stroke-width: 5.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -276,6 +311,7 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
   background: var(--c); padding: 3px 10px; border-radius: 12px; box-shadow: 0 4px 10px #0007;
   animation: bubble 4.5s ease forwards;
 }
+.bubble.sumi { color: var(--bubble-sumi-fg); }
 .bubble::after {
   content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
   border: 5px solid transparent; border-top-color: var(--c);
@@ -290,19 +326,19 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 .chatrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 #chatInput {
   font-family: var(--font-display); font-size: 18px; width: 4.5em; padding: 6px 10px; border-radius: 8px;
-  background: var(--kon-deep); color: var(--hanshi); border: 1px solid var(--kon-line);
+  background: var(--kon-deep); color: var(--head); border: 1px solid var(--kon-line);
 }
 #chatInput:focus-visible { outline: 2px solid var(--kin); outline-offset: 1px; }
 .chatrow .spacer { flex: 1; }
 .statusline { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .timer { font-size: 13px; color: var(--kin); font-variant-numeric: tabular-nums; font-weight: 700; }
-.timer.hurry { color: #ff8a7a; }
+.timer.hurry { color: var(--err); }
 
 /* ロビー・1字ごとの結果・結果発表 */
 .lobby { display: flex; flex-direction: column; gap: 10px; }
 .lobby .remake { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .round-head { display: flex; align-items: baseline; gap: 10px; }
-.round-head b { font-family: var(--font-display); font-weight: 400; font-size: 28px; color: var(--hanshi); }
+.round-head b { font-family: var(--font-display); font-weight: 400; font-size: 28px; color: var(--head); }
 .round-head span { font-size: 13px; color: var(--muted); }
 .round-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; }
 .card { margin: 0; display: flex; flex-direction: column; gap: 5px; }
@@ -321,7 +357,7 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 .final { display: flex; flex-direction: column; gap: 16px; }
 .winner { display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .winner-side { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.winner-name { font-size: 18px; font-weight: 700; color: var(--hanshi); }
+.winner-name { font-size: 18px; font-weight: 700; color: var(--head); }
 .ranking { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ranking li {
   display: grid; grid-template-columns: 2.2em 30px minmax(0, 1fr) auto; gap: 8px; align-items: center;
@@ -331,6 +367,14 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 .ranking .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ranking .nm small { display: block; color: var(--muted); font-size: 11px; }
 .ranking .tt { font-weight: 700; font-size: 16px; }
+
+
+.themebtn {
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--kon-line); background: transparent;
+  color: var(--head); display: grid; place-items: center; cursor: pointer; padding: 0; flex: none;
+}
+.themebtn svg { width: 18px; height: 18px; }
+.themebtn:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
 
 /* スマホでは詰めて、半紙とおぜんが1画面に収まるように */
 @media (max-width: 520px) {
@@ -362,6 +406,9 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
         <button type="button" id="blind-on" data-v="on" aria-pressed="true">あり</button>
         <button type="button" id="blind-off" data-v="off" aria-pressed="false">なし</button>
       </div>
+      <button type="button" class="themebtn" id="themeBtn" aria-label="背景を白にする" title="背景の色">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg>
+      </button>
     </div>
   </header>
 
@@ -372,10 +419,9 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 
   <!-- みんなで：参加前 -->
   <div class="panel" id="joinView" hidden>
-    <p class="notice" id="onlineNotice">部屋を作って招待リンクを送ると、みんなで同じ字に同時に挑戦できます。好きな漢字を1字選ぶと、入室したときにその字で福笑いをして、できた字があなたのアイコンになります。</p>
+    <p class="notice" id="onlineNotice">部屋を作って招待リンクを送ると、みんなで同じ字に同時に挑戦できます。好きな漢字1字と色を選ぶと、入室したときにその字で福笑いをして、できた字があなたのアイコンになります。</p>
     <div class="field">
-      <input id="nameInput" maxlength="12" placeholder="なまえ" autocomplete="nickname">
-      <input id="iconInput" maxlength="2" placeholder="好きな漢字1字" autocomplete="off">
+      <input id="iconInput" maxlength="2" placeholder="好きな漢字1字" autocomplete="off" aria-label="アイコンにする漢字1字">
     </div>
     <div class="colors" id="colorPick" role="radiogroup" aria-label="アイコンの色"></div>
     <div class="field">
@@ -422,6 +468,6 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
   <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
 </div>
 
-<script src="kanji-data.js?v=202610201545" charset="utf-8"></script>
-<script src="firebase-config.js?v=202610201545" charset="utf-8"></script>
-<script src="app.js?v=202610201545" charset="utf-8"></script>
+<script src="kanji-data.js?v=202610201554" charset="utf-8"></script>
+<script src="firebase-config.js?v=202610201554" charset="utf-8"></script>
+<script src="app.js?v=202610201554" charset="utf-8"></script>
