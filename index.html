@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>へのへのもじもじ</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +21,9 @@
   --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   color-scheme: dark;
 }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
+body { margin: 0; }
 body {
   background: var(--kon);
   background-image: radial-gradient(circle at 50% 0%, #26305285 0%, transparent 60%);
@@ -144,6 +148,50 @@ footer a { color: inherit; }
   .stamp { animation: none; }
   #board .cover { transition: none; }
 }
+
+/* あそびかた切替・オンライン */
+.tabs { display: flex; gap: 6px; }
+.tabs button {
+  flex: 1; font: inherit; font-weight: 700; font-size: 15px; padding: 10px; cursor: pointer;
+  background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid var(--kon-line);
+}
+.tabs button[aria-pressed="true"] { color: var(--hanshi); border-bottom-color: var(--kin); }
+.field { display: flex; gap: 8px; flex-wrap: wrap; }
+.field input {
+  font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 8px; min-width: 0; flex: 1 1 140px;
+  background: var(--kon-deep); color: var(--hanshi); border: 1px solid var(--kon-line);
+}
+.field input:focus-visible { outline: 2px solid var(--kin); outline-offset: 1px; }
+#codeInput { text-transform: uppercase; letter-spacing: .3em; font-variant-numeric: tabular-nums; flex: 0 1 130px; }
+.notice { font-size: 13px; color: var(--muted); line-height: 1.7; margin: 0; }
+.notice.err { color: #ff9b8f; }
+.roomcode { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.roomcode b { font-family: var(--font-display); font-weight: 400; font-size: 28px; letter-spacing: .25em; color: var(--kin); }
+.invite { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.invite code {
+  flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 12px; color: var(--muted);
+  background: var(--kon-deep); border: 1px solid var(--kon-line); border-radius: 6px; padding: 7px 9px;
+}
+.btn.small { padding: 7px 14px; font-size: 13px; }
+.players { display: flex; flex-wrap: wrap; gap: 6px; }
+.players span {
+  font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--kon-line); color: var(--text);
+}
+.players span.me { border-color: var(--kin); }
+.players span.done::after { content: " ✓"; color: var(--kin); }
+.players span.host::before { content: "親 "; color: var(--shu); font-weight: 700; }
+.seg button:disabled { cursor: default; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.gallery figure { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.gallery svg { width: 100%; aspect-ratio: 1; max-width: 100%; background: var(--hanshi); border-radius: 2px; display: block; }
+.gallery svg path { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+.gallery svg .ghost path { stroke: var(--shu); stroke-width: 3; opacity: .25; }
+.gallery figcaption { font-size: 12px; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.gallery figcaption .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gallery figcaption .pt { color: var(--kin); flex: none; }
+.gallery figure.top svg { box-shadow: 0 0 0 3px var(--kin); }
+h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0; color: var(--hanshi); letter-spacing: .1em; }
+.waiting { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; color: #8a8576; font-size: 14px; line-height: 1.8; }
 </style>
 
 <div class="wrap">
@@ -151,6 +199,32 @@ footer a { color: inherit; }
     <h1>へのへのもじもじ<small>漢字福笑い</small></h1>
     <div class="status" id="status"></div>
   </header>
+
+  <div class="tabs" id="playTabs">
+    <button type="button" id="tab-solo" data-v="solo" aria-pressed="true">ひとりで</button>
+    <button type="button" id="tab-online" data-v="online" aria-pressed="false">みんなで</button>
+  </div>
+
+  <!-- みんなで：参加前 -->
+  <div class="panel" id="joinView" hidden>
+    <p class="notice" id="onlineNotice">部屋を作って招待リンクを送ると、同じお題をみんなで同時に解けます。</p>
+    <div class="field">
+      <input id="nameInput" maxlength="12" placeholder="なまえ" autocomplete="nickname">
+    </div>
+    <div class="field">
+      <button type="button" class="btn primary" id="createBtn">部屋を作る</button>
+      <input id="codeInput" maxlength="4" placeholder="コード" autocomplete="off">
+      <button type="button" class="btn" id="joinBtn">入る</button>
+    </div>
+    <p class="notice err" id="joinError" hidden></p>
+  </div>
+
+  <!-- みんなで：部屋の中 -->
+  <div class="panel" id="roomView" hidden>
+    <div class="roomcode"><span class="notice">部屋</span><b id="roomCode"></b><button type="button" class="btn small" id="leaveBtn">退出</button></div>
+    <div class="invite"><code id="inviteUrl"></code><button type="button" class="btn small" id="copyBtn">コピー</button></div>
+    <div class="players" id="players"></div>
+  </div>
 
   <div class="panel" id="setup">
     <div class="row">
@@ -177,7 +251,12 @@ footer a { color: inherit; }
   <div class="result" id="result" hidden></div>
   <div class="actions" id="actions"></div>
 
-  <div class="panel">
+  <div class="panel" id="galleryPanel" hidden>
+    <h2>みんなの作品</h2>
+    <div class="gallery" id="gallery"></div>
+  </div>
+
+  <div class="panel" id="soloPanel">
     <div class="row"><span class="label" style="width:auto">お題を選ぶ</span></div>
     <div class="chips" id="chips"></div>
     <p class="howto">お手本を覚えたら、目隠しをしたつもりで下のおぜんからパーツを半紙へ運びます。置いたパーツは見えなくなります。全部置いたら目隠しをとって、どれだけ元の字に近いか答え合わせ。</p>
@@ -186,282 +265,6 @@ footer a { color: inherit; }
   <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
 </div>
 
-<script src="kanji-data.js"></script>
-<script>
-(() => {
-  const DATA = window.KANJI_DATA || [];
-  const VB = 109;               // KanjiVG の座標系
-  const NS = "http://www.w3.org/2000/svg";
-  const $ = (id) => document.getElementById(id);
-  const stage = $("stage"), board = $("board"), tray = $("tray");
-
-  const state = {
-    mode: "parts", blind: true,
-    kanji: null, pieces: [], phase: "idle", // idle | preview | play | reveal
-    cleared: new Set(),
-  };
-  try { JSON.parse(localStorage.getItem("hhmm-cleared") || "[]").forEach(c => state.cleared.add(c)); } catch (e) {}
-
-  // ---------- レイアウト（単位：KanjiVG座標。盤の左上が原点） ----------
-  let L = {};
-  function layout() {
-    const W = stage.clientWidth;
-    const S = Math.min(W, 380);
-    const u = S / VB;
-    const gap = 14;
-    const trayH = Math.round(S * 0.85);
-    L = { W, S, u, bx: (W - S) / 2, trayTop: S + gap, trayH };
-    stage.style.height = (S + gap + trayH) + "px";
-    Object.assign(board.style, { left: L.bx + "px", width: S + "px", height: S + "px" });
-    Object.assign(tray.style, { top: L.trayTop + "px", height: trayH + "px" });
-    state.pieces.forEach(placeEl);
-  }
-
-  // ---------- パーツ ----------
-  function strokePaths(idx) {
-    return idx.map(i => `<path d="${state.kanji.strokes[i]}"/>`).join("");
-  }
-  function measure(idx) {
-    const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("viewBox", `0 0 ${VB} ${VB}`);
-    svg.style.cssText = "position:absolute;visibility:hidden;width:109px;height:109px";
-    svg.innerHTML = strokePaths(idx);
-    document.body.appendChild(svg);
-    const b = svg.getBBox();
-    svg.remove();
-    const pad = 3;
-    return { x: b.x - pad, y: b.y - pad, w: b.width + pad * 2, h: b.height + pad * 2 };
-  }
-
-  function buildPieces() {
-    stage.querySelectorAll(".piece").forEach(e => e.remove());
-    const k = state.kanji;
-    const groups = state.mode === "parts" && k.parts.length > 1
-      ? k.parts.map(p => p.s)
-      : k.strokes.map((_, i) => [i]);
-    state.pieces = groups.map((idx, n) => {
-      const bb = measure(idx);
-      const el = document.createElement("div");
-      el.className = "piece offboard";
-      el.innerHTML = `<svg viewBox="${bb.x} ${bb.y} ${bb.w} ${bb.h}" xmlns="${NS}">${strokePaths(idx)}</svg>`;
-      const p = { el, bb, idx, x: 0, y: 0, placed: false };
-      attachDrag(p);
-      stage.appendChild(el);
-      return p;
-    });
-    scatterAll(state.pieces);
-    state.pieces.forEach(placeEl);
-  }
-
-  // おぜんをマス目に分け、各パーツの中心をばらばらのマスに置く（重なりを減らす）
-  function scatterAll(list) {
-    const W = L.W / L.u, top = L.trayTop / L.u + 12, H = L.trayH / L.u - 14, bx = L.bx / L.u;
-    const n = list.length;
-    const cols = Math.max(1, Math.round(Math.sqrt(n * W / H)));
-    const rows = Math.ceil(n / cols);
-    const cells = [];
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push([c, r]);
-    cells.sort(() => Math.random() - .5);
-    list.forEach((p, i) => {
-      const [c, r] = cells[i];
-      const cw = W / cols, ch = H / rows;
-      const cx = (c + .5 + (Math.random() - .5) * .5) * cw;
-      const cy = (r + .5 + (Math.random() - .5) * .5) * ch;
-      const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
-      p.x = clamp(cx - p.bb.w / 2, 2, W - p.bb.w - 2) - bx;
-      p.y = clamp(top + cy - p.bb.h / 2, top, top + H - p.bb.h);
-    });
-  }
-
-  function placeEl(p) {
-    const { u, bx } = L;
-    Object.assign(p.el.style, {
-      left: (bx + p.x * u) + "px", top: (p.y * u) + "px",
-      width: (p.bb.w * u) + "px", height: (p.bb.h * u) + "px",
-    });
-  }
-
-  function onBoard(p) {
-    const cx = p.x + p.bb.w / 2, cy = p.y + p.bb.h / 2;
-    return cx >= 0 && cx <= VB && cy >= 0 && cy <= VB;
-  }
-
-  let zTop = 1;
-  function attachDrag(p) {
-    let sx, sy, ox, oy, id = null;
-    p.el.addEventListener("pointerdown", (e) => {
-      if (state.phase !== "play") return;
-      id = e.pointerId; p.el.setPointerCapture(id);
-      p.el.style.zIndex = String(++zTop);
-      sx = e.clientX; sy = e.clientY; ox = p.x; oy = p.y;
-      p.el.classList.add("dragging");
-      e.preventDefault();
-    });
-    p.el.addEventListener("pointermove", (e) => {
-      if (e.pointerId !== id) return;
-      p.x = ox + (e.clientX - sx) / L.u;
-      p.y = oy + (e.clientY - sy) / L.u;
-      placeEl(p);
-      const on = onBoard(p);
-      p.el.classList.toggle("onboard", on);
-      p.el.classList.toggle("offboard", !on);
-    });
-    const end = (e) => {
-      if (e.pointerId !== id) return;
-      id = null;
-      p.el.classList.remove("dragging");
-      p.placed = onBoard(p);
-      if (p.placed && state.blind) p.el.classList.add("hiddenplace");
-      update();
-    };
-    p.el.addEventListener("pointerup", end);
-    p.el.addEventListener("pointercancel", end);
-  }
-
-  // ---------- 盤面描画 ----------
-  function boardSvg(inner) {
-    return `<svg class="big" viewBox="0 0 ${VB} ${VB}" xmlns="${NS}">${inner}</svg>`;
-  }
-
-  // ---------- 進行 ----------
-  let timer = null;
-  function start(kanji) {
-    clearInterval(timer);
-    state.kanji = kanji || DATA[Math.floor(Math.random() * DATA.length)];
-    state.phase = "preview";
-    $("result").hidden = true;
-    buildPieces();
-    state.pieces.forEach(p => p.el.hidden = true);
-    let n = 3;
-    board.innerHTML = `<div class="preview">${boardSvg(`<g>${strokePaths(state.kanji.strokes.map((_, i) => i))}</g>`)}<div class="count" id="count">${n}</div></div>`;
-    setActions([["覚えた！", "primary", play]]);
-    timer = setInterval(() => {
-      n -= 1;
-      const c = $("count");
-      if (c) c.textContent = n;
-      if (n <= 0) play();
-    }, 1000);
-    update();
-  }
-
-  function play() {
-    clearInterval(timer);
-    if (state.phase !== "preview") return;
-    state.phase = "play";
-    board.innerHTML = state.blind ? `<div class="cover">目隠し中</div>` : "";
-    state.pieces.forEach(p => p.el.hidden = false);
-    update();
-  }
-
-  function reveal() {
-    state.phase = "reveal";
-    const cover = board.querySelector(".cover");
-    state.pieces.forEach(p => {
-      p.el.classList.add("reveal");
-      p.el.classList.remove("hiddenplace");
-    });
-    if (cover) requestAnimationFrame(() => cover.classList.add("off"));
-    // 採点：各パーツの「正しい位置」からのずれ（KanjiVG座標）の平均
-    const d = state.pieces.reduce((s, p) => s + Math.hypot(p.x - p.bb.x, p.y - p.bb.y), 0) / state.pieces.length;
-    const score = Math.round(100 * Math.max(0, 1 - d / 28));
-    const rank = score >= 90 ? ["名人", "どこから見ても「" + state.kanji.c + "」。お見事です。"]
-      : score >= 75 ? ["達筆", "ほぼ完璧。ちょっとの癖が味になっています。"]
-      : score >= 55 ? ["まずまず", "読めます。たぶん。"]
-      : score >= 35 ? ["へのへの", "福笑いとしては大成功です。"]
-      : ["もじもじ", "新しい漢字が生まれました。"];
-    const ghost = `<g class="ghost">${strokePaths(state.kanji.strokes.map((_, i) => i))}</g>`;
-    setTimeout(() => {
-      board.insertAdjacentHTML("beforeend", boardSvg(ghost) + `<div class="stamp"><div><b style="font-size:${L.S * 0.09}px">${rank[0]}</b><b style="font-size:${L.S * 0.06}px">${score}点</b></div></div>`);
-      const g = board.querySelector("svg.big:last-of-type");
-      g.style.opacity = "0";
-      g.style.transition = "opacity .4s";
-      state.ghost = g;
-    }, state.blind ? 900 : 0);
-    const r = $("result");
-    r.innerHTML = `<div class="title">「${state.kanji.c}」 ${score}点・${rank[0]}</div><div class="note">${rank[1]}</div>`;
-    r.hidden = false;
-    state.cleared.add(state.kanji.c);
-    try { localStorage.setItem("hhmm-cleared", JSON.stringify([...state.cleared])); } catch (e) {}
-    renderChips();
-    setActions([
-      ["お手本を重ねる", "", (btn) => {
-        if (!state.ghost) return;
-        const on = state.ghost.style.opacity === "1";
-        state.ghost.style.opacity = on ? "0" : "1";
-        btn.textContent = on ? "お手本を重ねる" : "お手本を隠す";
-      }],
-      ["もう一回", "", () => start(state.kanji)],
-      ["次の漢字", "primary", () => start(pickNext())],
-    ]);
-    update();
-  }
-
-  function pickNext() {
-    const rest = DATA.filter(k => k !== state.kanji && !state.cleared.has(k.c));
-    const pool = rest.length ? rest : DATA.filter(k => k !== state.kanji);
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  function update() {
-    const total = state.pieces.length;
-    const placed = state.pieces.filter(p => p.placed).length;
-    const st = $("status");
-    if (state.phase === "preview") st.textContent = "よく見て覚えてください";
-    else if (state.phase === "play") st.textContent = `${placed} / ${total} パーツ`;
-    else if (state.phase === "reveal") st.textContent = "答え合わせ";
-    if (state.phase === "play") {
-      const label = state.blind ? "目隠しをとる" : "答え合わせ";
-      setActions([
-        [label, "primary", reveal, placed < total],
-        ["やめて別の字", "", () => start(pickNext())],
-      ]);
-    }
-  }
-
-  function setActions(list) {
-    const box = $("actions");
-    box.innerHTML = "";
-    list.forEach(([text, cls, fn, disabled]) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "btn " + cls;
-      b.textContent = text;
-      b.disabled = !!disabled;
-      b.addEventListener("click", () => fn(b));
-      box.appendChild(b);
-    });
-  }
-
-  function renderChips() {
-    const box = $("chips");
-    box.innerHTML = "";
-    DATA.forEach(k => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = k.c;
-      b.title = k.strokes.length + "画";
-      if (state.cleared.has(k.c)) b.className = "done";
-      b.addEventListener("click", () => start(k));
-      box.appendChild(b);
-    });
-  }
-
-  function bindSeg(id, key, map) {
-    const seg = $(id);
-    seg.addEventListener("click", (e) => {
-      const b = e.target.closest("button");
-      if (!b) return;
-      seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-      state[key] = map(b.dataset.v);
-      if (state.kanji) start(state.kanji);
-    });
-  }
-  bindSeg("modeSeg", "mode", v => v);
-  bindSeg("blindSeg", "blind", v => v === "on");
-
-  window.addEventListener("resize", layout);
-  renderChips();
-  layout();
-  start(DATA.find(k => k.c === "顔") || DATA[0]);
-})();
-</script>
+<script src="kanji-data.js" charset="utf-8"></script>
+<script src="firebase-config.js" charset="utf-8"></script>
+<script src="app.js" charset="utf-8"></script>
