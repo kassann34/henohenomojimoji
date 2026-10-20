@@ -1,0 +1,467 @@
+<title>へのへのもじもじ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* Layout: 一画面のゲーム台。上に半紙（盤）、下にパーツを散らす「お膳」、その下に操作ボタン */
+:root {
+  --kon: #1d2540;        /* 台の紺 */
+  --kon-deep: #141a2e;
+  --kon-line: #2f3a5e;
+  --hanshi: #f5f3ec;     /* 半紙 */
+  --sumi: #1b1b1f;       /* 墨 */
+  --shu: #c8372d;        /* 朱（判子） */
+  --kin: #d9b45a;        /* 金（お正月の差し色） */
+  --text: #e9e6dc;
+  --muted: #a3a8bd;
+  --font-display: "Yuji Syuku", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--kon);
+  background-image: radial-gradient(circle at 50% 0%, #26305285 0%, transparent 60%);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  -webkit-tap-highlight-color: transparent;
+}
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding-block: 16px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 14px;
+}
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: 30px; margin: 0; letter-spacing: .08em; color: var(--hanshi);
+}
+h1 small { font-size: 13px; color: var(--kin); letter-spacing: .2em; margin-left: 8px; font-family: var(--font-body); }
+.status { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* 設定 */
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row > .label { font-size: 12px; letter-spacing: .12em; color: var(--muted); width: 5.5em; }
+.seg { display: inline-flex; border: 1px solid var(--kon-line); border-radius: 999px; overflow: hidden; }
+.seg button {
+  font: inherit; font-size: 14px; color: var(--muted); background: transparent;
+  border: 0; padding: 7px 14px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--hanshi); color: var(--sumi); font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button {
+  font-family: var(--font-display); font-size: 20px; width: 40px; height: 40px;
+  background: var(--kon-deep); color: var(--hanshi); border: 1px solid var(--kon-line);
+  border-radius: 6px; cursor: pointer;
+}
+.chips button:hover { border-color: var(--kin); }
+.chips button.done { color: var(--kin); }
+
+/* ゲーム台 */
+#stage { position: relative; width: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
+#board {
+  position: absolute; top: 0;
+  background: var(--hanshi);
+  box-shadow: 0 10px 30px #00000066, inset 0 0 0 1px #00000010;
+  border-radius: 2px; overflow: hidden;
+}
+#board::before { /* 半紙の折り目ガイド（十字） */
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, transparent calc(50% - .5px), #d8d3c4 calc(50% - .5px), #d8d3c4 calc(50% + .5px), transparent calc(50% + .5px)),
+    linear-gradient(0deg, transparent calc(50% - .5px), #d8d3c4 calc(50% - .5px), #d8d3c4 calc(50% + .5px), transparent calc(50% + .5px));
+  opacity: .7;
+}
+#board svg.big { position: absolute; inset: 0; width: 100%; height: 100%; }
+#board .cover { /* 目隠しの手ぬぐい */
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background:
+    repeating-linear-gradient(45deg, #2a3a6e 0 10px, #24325f 10px 20px);
+  color: var(--hanshi); font-family: var(--font-display); font-size: 22px; letter-spacing: .2em;
+  transition: transform .9s cubic-bezier(.6,.05,.3,1), opacity .9s;
+}
+#board .cover.off { transform: translateY(-105%); opacity: .2; pointer-events: none; }
+#tray {
+  position: absolute; left: 0; right: 0;
+  border: 1px dashed var(--kon-line); border-radius: 10px;
+  background: #ffffff06;
+}
+#tray span { position: absolute; left: 10px; top: 6px; font-size: 11px; letter-spacing: .14em; color: var(--muted); }
+.piece { position: absolute; cursor: grab; touch-action: none; pointer-events: none; }
+.piece svg { width: 100%; height: 100%; overflow: visible; display: block; pointer-events: auto; transition: transform .15s ease-out; }
+.piece.offboard svg { transform: scale(.6); } /* おぜんの上では小さく、半紙に乗せると原寸 */
+.piece path, svg.big path { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+.piece.onboard path { stroke: var(--sumi); }
+.piece.offboard path { stroke: var(--hanshi); }
+.piece.dragging { cursor: grabbing; z-index: 50; filter: drop-shadow(0 6px 8px #0008); }
+.piece.hiddenplace { opacity: 0; pointer-events: none; }
+.piece.reveal { transition: opacity .6s; }
+svg.big .ghost path { stroke: var(--shu); stroke-width: 3; opacity: .35; }
+
+/* 判子 */
+.stamp {
+  position: absolute; right: 6%; bottom: 6%;
+  width: 34%; aspect-ratio: 1; max-width: 100%;
+  border: 3px solid var(--shu); border-radius: 50%;
+  color: var(--shu); display: grid; place-items: center; text-align: center;
+  font-family: var(--font-display); line-height: 1.05;
+  transform: rotate(-12deg) scale(1); background: #f5f3ecaa;
+  animation: stamp .35s cubic-bezier(.2,1.6,.4,1) both;
+}
+.stamp b { font-weight: 400; display: block; }
+@keyframes stamp { from { transform: rotate(-12deg) scale(2.2); opacity: 0; } }
+
+/* お手本の表示 */
+.preview {
+  position: absolute; inset: 0; display: grid; place-items: center; background: var(--hanshi);
+}
+.preview .count {
+  position: absolute; top: 8px; right: 12px; color: var(--shu); font-family: var(--font-display); font-size: 22px;
+}
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.btn {
+  font: inherit; font-weight: 700; font-size: 15px; letter-spacing: .06em;
+  padding: 11px 20px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--kon-line); background: transparent; color: var(--text);
+}
+.btn.primary { background: var(--shu); border-color: var(--shu); color: #fff; }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn:focus-visible, .seg button:focus-visible, .chips button:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
+.result { text-align: center; display: flex; flex-direction: column; gap: 4px; }
+.result .title { font-family: var(--font-display); font-size: 26px; color: var(--hanshi); }
+.result .note { color: var(--muted); font-size: 13px; }
+.howto { color: var(--muted); font-size: 13px; line-height: 1.8; margin: 0; }
+footer { color: #6f7593; font-size: 11px; text-align: center; line-height: 1.6; }
+footer a { color: inherit; }
+@media (prefers-reduced-motion: reduce) {
+  .stamp { animation: none; }
+  #board .cover { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>へのへのもじもじ<small>漢字福笑い</small></h1>
+    <div class="status" id="status"></div>
+  </header>
+
+  <div class="panel" id="setup">
+    <div class="row">
+      <span class="label">分け方</span>
+      <div class="seg" id="modeSeg">
+        <button type="button" id="mode-parts" data-v="parts" aria-pressed="true">部首ごと</button>
+        <button type="button" id="mode-strokes" data-v="strokes" aria-pressed="false">一画ずつ</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">目隠し</span>
+      <div class="seg" id="blindSeg">
+        <button type="button" id="blind-on" data-v="on" aria-pressed="true">あり</button>
+        <button type="button" id="blind-off" data-v="off" aria-pressed="false">なし（練習）</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="stage">
+    <div id="board"></div>
+    <div id="tray"><span>おぜん（ここからパーツを運ぶ）</span></div>
+  </div>
+
+  <div class="result" id="result" hidden></div>
+  <div class="actions" id="actions"></div>
+
+  <div class="panel">
+    <div class="row"><span class="label" style="width:auto">お題を選ぶ</span></div>
+    <div class="chips" id="chips"></div>
+    <p class="howto">お手本を覚えたら、目隠しをしたつもりで下のおぜんからパーツを半紙へ運びます。置いたパーツは見えなくなります。全部置いたら目隠しをとって、どれだけ元の字に近いか答え合わせ。</p>
+  </div>
+
+  <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
+</div>
+
+<script src="kanji-data.js"></script>
+<script>
+(() => {
+  const DATA = window.KANJI_DATA || [];
+  const VB = 109;               // KanjiVG の座標系
+  const NS = "http://www.w3.org/2000/svg";
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage"), board = $("board"), tray = $("tray");
+
+  const state = {
+    mode: "parts", blind: true,
+    kanji: null, pieces: [], phase: "idle", // idle | preview | play | reveal
+    cleared: new Set(),
+  };
+  try { JSON.parse(localStorage.getItem("hhmm-cleared") || "[]").forEach(c => state.cleared.add(c)); } catch (e) {}
+
+  // ---------- レイアウト（単位：KanjiVG座標。盤の左上が原点） ----------
+  let L = {};
+  function layout() {
+    const W = stage.clientWidth;
+    const S = Math.min(W, 380);
+    const u = S / VB;
+    const gap = 14;
+    const trayH = Math.round(S * 0.85);
+    L = { W, S, u, bx: (W - S) / 2, trayTop: S + gap, trayH };
+    stage.style.height = (S + gap + trayH) + "px";
+    Object.assign(board.style, { left: L.bx + "px", width: S + "px", height: S + "px" });
+    Object.assign(tray.style, { top: L.trayTop + "px", height: trayH + "px" });
+    state.pieces.forEach(placeEl);
+  }
+
+  // ---------- パーツ ----------
+  function strokePaths(idx) {
+    return idx.map(i => `<path d="${state.kanji.strokes[i]}"/>`).join("");
+  }
+  function measure(idx) {
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${VB} ${VB}`);
+    svg.style.cssText = "position:absolute;visibility:hidden;width:109px;height:109px";
+    svg.innerHTML = strokePaths(idx);
+    document.body.appendChild(svg);
+    const b = svg.getBBox();
+    svg.remove();
+    const pad = 3;
+    return { x: b.x - pad, y: b.y - pad, w: b.width + pad * 2, h: b.height + pad * 2 };
+  }
+
+  function buildPieces() {
+    stage.querySelectorAll(".piece").forEach(e => e.remove());
+    const k = state.kanji;
+    const groups = state.mode === "parts" && k.parts.length > 1
+      ? k.parts.map(p => p.s)
+      : k.strokes.map((_, i) => [i]);
+    state.pieces = groups.map((idx, n) => {
+      const bb = measure(idx);
+      const el = document.createElement("div");
+      el.className = "piece offboard";
+      el.innerHTML = `<svg viewBox="${bb.x} ${bb.y} ${bb.w} ${bb.h}" xmlns="${NS}">${strokePaths(idx)}</svg>`;
+      const p = { el, bb, idx, x: 0, y: 0, placed: false };
+      attachDrag(p);
+      stage.appendChild(el);
+      return p;
+    });
+    scatterAll(state.pieces);
+    state.pieces.forEach(placeEl);
+  }
+
+  // おぜんをマス目に分け、各パーツの中心をばらばらのマスに置く（重なりを減らす）
+  function scatterAll(list) {
+    const W = L.W / L.u, top = L.trayTop / L.u + 12, H = L.trayH / L.u - 14, bx = L.bx / L.u;
+    const n = list.length;
+    const cols = Math.max(1, Math.round(Math.sqrt(n * W / H)));
+    const rows = Math.ceil(n / cols);
+    const cells = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push([c, r]);
+    cells.sort(() => Math.random() - .5);
+    list.forEach((p, i) => {
+      const [c, r] = cells[i];
+      const cw = W / cols, ch = H / rows;
+      const cx = (c + .5 + (Math.random() - .5) * .5) * cw;
+      const cy = (r + .5 + (Math.random() - .5) * .5) * ch;
+      const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+      p.x = clamp(cx - p.bb.w / 2, 2, W - p.bb.w - 2) - bx;
+      p.y = clamp(top + cy - p.bb.h / 2, top, top + H - p.bb.h);
+    });
+  }
+
+  function placeEl(p) {
+    const { u, bx } = L;
+    Object.assign(p.el.style, {
+      left: (bx + p.x * u) + "px", top: (p.y * u) + "px",
+      width: (p.bb.w * u) + "px", height: (p.bb.h * u) + "px",
+    });
+  }
+
+  function onBoard(p) {
+    const cx = p.x + p.bb.w / 2, cy = p.y + p.bb.h / 2;
+    return cx >= 0 && cx <= VB && cy >= 0 && cy <= VB;
+  }
+
+  let zTop = 1;
+  function attachDrag(p) {
+    let sx, sy, ox, oy, id = null;
+    p.el.addEventListener("pointerdown", (e) => {
+      if (state.phase !== "play") return;
+      id = e.pointerId; p.el.setPointerCapture(id);
+      p.el.style.zIndex = String(++zTop);
+      sx = e.clientX; sy = e.clientY; ox = p.x; oy = p.y;
+      p.el.classList.add("dragging");
+      e.preventDefault();
+    });
+    p.el.addEventListener("pointermove", (e) => {
+      if (e.pointerId !== id) return;
+      p.x = ox + (e.clientX - sx) / L.u;
+      p.y = oy + (e.clientY - sy) / L.u;
+      placeEl(p);
+      const on = onBoard(p);
+      p.el.classList.toggle("onboard", on);
+      p.el.classList.toggle("offboard", !on);
+    });
+    const end = (e) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      p.el.classList.remove("dragging");
+      p.placed = onBoard(p);
+      if (p.placed && state.blind) p.el.classList.add("hiddenplace");
+      update();
+    };
+    p.el.addEventListener("pointerup", end);
+    p.el.addEventListener("pointercancel", end);
+  }
+
+  // ---------- 盤面描画 ----------
+  function boardSvg(inner) {
+    return `<svg class="big" viewBox="0 0 ${VB} ${VB}" xmlns="${NS}">${inner}</svg>`;
+  }
+
+  // ---------- 進行 ----------
+  let timer = null;
+  function start(kanji) {
+    clearInterval(timer);
+    state.kanji = kanji || DATA[Math.floor(Math.random() * DATA.length)];
+    state.phase = "preview";
+    $("result").hidden = true;
+    buildPieces();
+    state.pieces.forEach(p => p.el.hidden = true);
+    let n = 3;
+    board.innerHTML = `<div class="preview">${boardSvg(`<g>${strokePaths(state.kanji.strokes.map((_, i) => i))}</g>`)}<div class="count" id="count">${n}</div></div>`;
+    setActions([["覚えた！", "primary", play]]);
+    timer = setInterval(() => {
+      n -= 1;
+      const c = $("count");
+      if (c) c.textContent = n;
+      if (n <= 0) play();
+    }, 1000);
+    update();
+  }
+
+  function play() {
+    clearInterval(timer);
+    if (state.phase !== "preview") return;
+    state.phase = "play";
+    board.innerHTML = state.blind ? `<div class="cover">目隠し中</div>` : "";
+    state.pieces.forEach(p => p.el.hidden = false);
+    update();
+  }
+
+  function reveal() {
+    state.phase = "reveal";
+    const cover = board.querySelector(".cover");
+    state.pieces.forEach(p => {
+      p.el.classList.add("reveal");
+      p.el.classList.remove("hiddenplace");
+    });
+    if (cover) requestAnimationFrame(() => cover.classList.add("off"));
+    // 採点：各パーツの「正しい位置」からのずれ（KanjiVG座標）の平均
+    const d = state.pieces.reduce((s, p) => s + Math.hypot(p.x - p.bb.x, p.y - p.bb.y), 0) / state.pieces.length;
+    const score = Math.round(100 * Math.max(0, 1 - d / 28));
+    const rank = score >= 90 ? ["名人", "どこから見ても「" + state.kanji.c + "」。お見事です。"]
+      : score >= 75 ? ["達筆", "ほぼ完璧。ちょっとの癖が味になっています。"]
+      : score >= 55 ? ["まずまず", "読めます。たぶん。"]
+      : score >= 35 ? ["へのへの", "福笑いとしては大成功です。"]
+      : ["もじもじ", "新しい漢字が生まれました。"];
+    const ghost = `<g class="ghost">${strokePaths(state.kanji.strokes.map((_, i) => i))}</g>`;
+    setTimeout(() => {
+      board.insertAdjacentHTML("beforeend", boardSvg(ghost) + `<div class="stamp"><div><b style="font-size:${L.S * 0.09}px">${rank[0]}</b><b style="font-size:${L.S * 0.06}px">${score}点</b></div></div>`);
+      const g = board.querySelector("svg.big:last-of-type");
+      g.style.opacity = "0";
+      g.style.transition = "opacity .4s";
+      state.ghost = g;
+    }, state.blind ? 900 : 0);
+    const r = $("result");
+    r.innerHTML = `<div class="title">「${state.kanji.c}」 ${score}点・${rank[0]}</div><div class="note">${rank[1]}</div>`;
+    r.hidden = false;
+    state.cleared.add(state.kanji.c);
+    try { localStorage.setItem("hhmm-cleared", JSON.stringify([...state.cleared])); } catch (e) {}
+    renderChips();
+    setActions([
+      ["お手本を重ねる", "", (btn) => {
+        if (!state.ghost) return;
+        const on = state.ghost.style.opacity === "1";
+        state.ghost.style.opacity = on ? "0" : "1";
+        btn.textContent = on ? "お手本を重ねる" : "お手本を隠す";
+      }],
+      ["もう一回", "", () => start(state.kanji)],
+      ["次の漢字", "primary", () => start(pickNext())],
+    ]);
+    update();
+  }
+
+  function pickNext() {
+    const rest = DATA.filter(k => k !== state.kanji && !state.cleared.has(k.c));
+    const pool = rest.length ? rest : DATA.filter(k => k !== state.kanji);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function update() {
+    const total = state.pieces.length;
+    const placed = state.pieces.filter(p => p.placed).length;
+    const st = $("status");
+    if (state.phase === "preview") st.textContent = "よく見て覚えてください";
+    else if (state.phase === "play") st.textContent = `${placed} / ${total} パーツ`;
+    else if (state.phase === "reveal") st.textContent = "答え合わせ";
+    if (state.phase === "play") {
+      const label = state.blind ? "目隠しをとる" : "答え合わせ";
+      setActions([
+        [label, "primary", reveal, placed < total],
+        ["やめて別の字", "", () => start(pickNext())],
+      ]);
+    }
+  }
+
+  function setActions(list) {
+    const box = $("actions");
+    box.innerHTML = "";
+    list.forEach(([text, cls, fn, disabled]) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn " + cls;
+      b.textContent = text;
+      b.disabled = !!disabled;
+      b.addEventListener("click", () => fn(b));
+      box.appendChild(b);
+    });
+  }
+
+  function renderChips() {
+    const box = $("chips");
+    box.innerHTML = "";
+    DATA.forEach(k => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = k.c;
+      b.title = k.strokes.length + "画";
+      if (state.cleared.has(k.c)) b.className = "done";
+      b.addEventListener("click", () => start(k));
+      box.appendChild(b);
+    });
+  }
+
+  function bindSeg(id, key, map) {
+    const seg = $(id);
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      state[key] = map(b.dataset.v);
+      if (state.kanji) start(state.kanji);
+    });
+  }
+  bindSeg("modeSeg", "mode", v => v);
+  bindSeg("blindSeg", "blind", v => v === "on");
+
+  window.addEventListener("resize", layout);
+  renderChips();
+  layout();
+  start(DATA.find(k => k.c === "顔") || DATA[0]);
+})();
+</script>
