@@ -64,3 +64,7 @@ python3 tools/build_data.py <KanjiVGのkanjiフォルダ> kanji-data.js "$(cat t
 
 漢字の字形データは [KanjiVG](https://kanjivg.tagaini.net/)（© Ulrich Apel）を使用しています。
 KanjiVG は [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) で提供されているため、`kanji-data.js` も同じライセンスに従います。
+
+## 更新するとき
+
+ブラウザや GitHub Pages が古い JavaScript を使い続けないよう、`index.html` の `<script src="app.js?v=…">` の `v=` の数字を、ファイルを更新するたびに新しい値（日付など）に変えてください。
