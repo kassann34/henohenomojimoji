@@ -230,6 +230,127 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .bar .btn { padding: 9px 16px; font-size: 14px; }
 header .row { gap: 8px; }
 header .seg button { padding: 5px 12px; font-size: 13px; }
+
+/* みんなで：参加フォーム */
+#iconInput { flex: 0 1 140px; font-family: var(--font-display); font-size: 18px; }
+.colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.colors button {
+  width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+  background: var(--c); box-shadow: inset 0 0 0 2px var(--kon);
+}
+.colors button[aria-checked="true"] { border-color: var(--hanshi); }
+.colors button:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
+
+/* 参加者アイコン列 */
+.strip { display: flex; flex-wrap: wrap; gap: 10px 8px; padding-top: 6px; }
+.pl { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 64px; outline: none; }
+.pl-name { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.pl.me .pl-name { color: var(--kin); }
+.pl-sub { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pl.host .pl-icon::after {
+  content: "親"; position: absolute; top: -6px; right: -6px; font-size: 10px; line-height: 1;
+  background: var(--shu); color: #fff; border-radius: 3px; padding: 2px 3px; font-weight: 700;
+}
+.pl-icon { position: relative; }
+.icon {
+  display: grid; place-items: center; width: 44px; height: 44px; box-sizing: border-box;
+  background: var(--hanshi); border: 2px solid var(--c); border-radius: 10px; overflow: hidden;
+}
+.icon svg { width: 100%; height: 100%; display: block; }
+.icon path { fill: none; stroke: var(--c); stroke-width: 5.5; stroke-linecap: round; stroke-linejoin: round; }
+.icon b { font-family: var(--font-display); font-weight: 400; font-size: 24px; color: var(--c); opacity: .5; }
+.icon.sm { width: 26px; height: 26px; border-radius: 6px; border-width: 1.5px; }
+.icon.sm b { font-size: 15px; }
+.icon.lg { width: 72px; height: 72px; border-radius: 14px; border-width: 3px; }
+.pop {
+  display: none; position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  z-index: 80; width: 112px; padding: 8px; border-radius: 8px; background: var(--kon-deep);
+  border: 1px solid var(--kon-line); box-shadow: 0 10px 24px #000a; text-align: center; font-size: 11px; color: var(--muted);
+}
+.pop .sheet { margin-bottom: 6px; }
+.pl:hover .pop, .pl:focus .pop { display: block; }
+.bubbles { position: absolute; bottom: calc(100% - 4px); left: 50%; transform: translateX(-50%); z-index: 75; pointer-events: none; }
+.bubble {
+  position: absolute; bottom: 0; left: 50%; display: block;
+  font-family: var(--font-display); font-size: 22px; line-height: 1.2; color: #fff;
+  background: var(--c); padding: 3px 10px; border-radius: 12px; box-shadow: 0 4px 10px #0007;
+  animation: bubble 4.5s ease forwards;
+}
+.bubble::after {
+  content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+  border: 5px solid transparent; border-top-color: var(--c);
+}
+@keyframes bubble {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(.6); }
+  8% { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  14% { transform: translate(-50%, 0) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -6px); }
+  100% { opacity: 0; transform: translate(-50%, -16px); }
+}
+.chatrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#chatInput {
+  font-family: var(--font-display); font-size: 18px; width: 4.5em; padding: 6px 10px; border-radius: 8px;
+  background: var(--kon-deep); color: var(--hanshi); border: 1px solid var(--kon-line);
+}
+#chatInput:focus-visible { outline: 2px solid var(--kin); outline-offset: 1px; }
+.chatrow .spacer { flex: 1; }
+.statusline { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.timer { font-size: 13px; color: var(--kin); font-variant-numeric: tabular-nums; font-weight: 700; }
+.timer.hurry { color: #ff8a7a; }
+
+/* ロビー・1字ごとの結果・結果発表 */
+.lobby { display: flex; flex-direction: column; gap: 10px; }
+.lobby .remake { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.round-head { display: flex; align-items: baseline; gap: 10px; }
+.round-head b { font-family: var(--font-display); font-weight: 400; font-size: 28px; color: var(--hanshi); }
+.round-head span { font-size: 13px; color: var(--muted); }
+.round-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; }
+.card { margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.card .sq { aspect-ratio: 1; max-width: 100%; background: var(--hanshi); border-radius: 2px; box-shadow: 0 4px 12px #0007; display: grid; place-items: center; }
+.card .sq svg { width: 100%; height: 100%; display: block; }
+.card .sq path { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+.card .sq .timeout { font-size: 12px; color: #8a8576; }
+.card.top .sq { box-shadow: 0 0 0 3px var(--kin); }
+.card figcaption { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+.card figcaption .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card figcaption b { color: var(--kin); font-variant-numeric: tabular-nums; }
+.graph { overflow-x: auto; }
+.graph svg { display: block; width: 100%; max-width: 520px; height: auto; }
+.graph .grid { stroke: var(--kon-line); stroke-width: 1; }
+.graph text { fill: var(--muted); font-size: 10px; font-family: var(--font-body); }
+.final { display: flex; flex-direction: column; gap: 16px; }
+.winner { display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.winner-side { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.winner-name { font-size: 18px; font-weight: 700; color: var(--hanshi); }
+.ranking { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ranking li {
+  display: grid; grid-template-columns: 2.2em 30px minmax(0, 1fr) auto; gap: 8px; align-items: center;
+  padding: 6px 10px; border-radius: 8px; background: var(--kon-deep); font-variant-numeric: tabular-nums;
+}
+.ranking .rk { font-family: var(--font-display); font-size: 18px; color: var(--kin); }
+.ranking .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking .nm small { display: block; color: var(--muted); font-size: 11px; }
+.ranking .tt { font-weight: 700; font-size: 16px; }
+
+/* スマホでは詰めて、半紙とおぜんが1画面に収まるように */
+@media (max-width: 520px) {
+  .wrap { gap: 8px; padding-block: 8px 24px; }
+  header { align-items: center; flex-wrap: nowrap; }
+  h1 { font-size: 21px; letter-spacing: .04em; white-space: nowrap; }
+  h1 small { display: none; }
+  header .row .label { display: none; }
+  .tabs button { padding: 6px; font-size: 14px; }
+  .strip { gap: 8px 4px; padding-top: 4px; }
+  .pl { width: 54px; }
+  .icon { width: 36px; height: 36px; border-radius: 8px; }
+  .icon b { font-size: 20px; }
+  .pl-name { font-size: 11px; }
+  .pl-sub { font-size: 10px; }
+  .chatrow .btn.small { padding: 5px 12px; }
+  #chatInput { font-size: 16px; padding: 4px 8px; }
+  .bar { padding-block: 6px; }
+  .bar .btn { padding: 8px 14px; }
+}
 </style>
 
 <div class="wrap">
@@ -251,10 +372,12 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 
   <!-- みんなで：参加前 -->
   <div class="panel" id="joinView" hidden>
-    <p class="notice" id="onlineNotice">部屋を作って招待リンクを送ると、同じお題をみんなで同時に解けます。</p>
+    <p class="notice" id="onlineNotice">部屋を作って招待リンクを送ると、みんなで同じ字に同時に挑戦できます。好きな漢字を1字選ぶと、入室したときにその字で福笑いをして、できた字があなたのアイコンになります。</p>
     <div class="field">
       <input id="nameInput" maxlength="12" placeholder="なまえ" autocomplete="nickname">
+      <input id="iconInput" maxlength="2" placeholder="好きな漢字1字" autocomplete="off">
     </div>
+    <div class="colors" id="colorPick" role="radiogroup" aria-label="アイコンの色"></div>
     <div class="field">
       <button type="button" class="btn primary" id="createBtn">部屋を作る</button>
       <input id="codeInput" maxlength="4" placeholder="コード" autocomplete="off">
@@ -263,17 +386,22 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
     <p class="notice err" id="joinError" hidden></p>
   </div>
 
-  <!-- みんなで：部屋の中 -->
+  <!-- みんなで：部屋の中（参加者アイコンと漢字チャット） -->
   <div class="panel" id="roomView" hidden>
-    <div class="roomcode"><span class="notice">部屋</span><b id="roomCode"></b><button type="button" class="btn small" id="leaveBtn">退出</button></div>
-    <div class="invite"><code id="inviteUrl"></code><button type="button" class="btn small" id="copyBtn">コピー</button></div>
-    <div class="players" id="players"></div>
+    <div class="strip" id="players"></div>
+    <div class="chatrow">
+      <input id="chatInput" maxlength="2" placeholder="漢字1字" autocomplete="off" aria-label="漢字1字のチャット">
+      <button type="button" class="btn small" id="chatSend">送る</button>
+      <span class="notice err" id="chatError" hidden></span>
+      <span class="spacer"></span>
+      <button type="button" class="btn small" id="leaveBtn">退出</button>
+    </div>
   </div>
 
   <!-- 進み具合・点数・操作ボタン（スクロールしても上に残る） -->
   <div class="bar" id="bar">
     <div class="bar-info">
-      <div class="status" id="status"></div>
+      <div class="statusline"><span class="status" id="status"></span><span class="timer" id="timer"></span></div>
       <div class="result" id="result" hidden></div>
     </div>
     <div class="actions" id="actions"></div>
@@ -284,12 +412,8 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
     <div id="tray"><span>おぜん（ここから画を運ぶ）</span></div>
   </div>
 
-  <div class="panel" id="yojiPanel" hidden></div>
-
-  <div class="panel" id="galleryPanel" hidden>
-    <h2>みんなの作品</h2>
-    <div class="gallery" id="gallery"></div>
-  </div>
+  <div class="panel screen" id="yojiPanel" hidden></div>
+  <div class="panel screen" id="onlinePanel" hidden></div>
 
   <div class="panel" id="soloPanel">
     <p class="howto">お手本を覚えたら、目隠しをしたつもりで下のおぜんから一画ずつ半紙へ運びます。置いた画は見えなくなります。全部置いたら目隠しをとって、どれだけ元の字に近いか答え合わせ。4字できたら、あなたの字をつなげた「存在しない四字熟語」のできあがりです。</p>
@@ -298,6 +422,6 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
   <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
 </div>
 
-<script src="kanji-data.js?v=202610201219" charset="utf-8"></script>
-<script src="firebase-config.js?v=202610201219" charset="utf-8"></script>
-<script src="app.js?v=202610201219" charset="utf-8"></script>
+<script src="kanji-data.js?v=202610201503" charset="utf-8"></script>
+<script src="firebase-config.js?v=202610201503" charset="utf-8"></script>
+<script src="app.js?v=202610201503" charset="utf-8"></script>
