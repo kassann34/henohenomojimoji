@@ -57,8 +57,6 @@ URL の末尾に `?mock=1` を付けると、同じブラウザのタブ同士�
 | `database.rules.json` | Realtime Database のセキュリティルール |
 | `kanji-data.js` | 漢字ごとの画データ（自動生成。部首ごとの区切りも入っているが、いまのゲームでは使っていない） |
 | `tools/build_data.py` | KanjiVG の SVG から `kanji-data.js` を作るスクリプト |
-| `ogp.png` | リンクを貼ったときに出るカードの画像（1200×630） |
-| `tools/ogp.html` | `ogp.png` の元。`tools` で `npm i @fontsource/yuji-syuku @fontsource/zen-kaku-gothic-new` してからブラウザで開き、1200×630 で撮影する |
 
 ### 漢字を増やす
 
