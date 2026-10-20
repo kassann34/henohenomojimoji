@@ -417,6 +417,14 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
 .ipic .iarrow + .iarrow { stroke-dasharray: none; }
 .isheet { width: 50px; }
 
+
+/* 判子は画より手前 */
+.stampwrap { position: absolute; top: 0; z-index: 100000; pointer-events: none; }
+/* 共有 */
+.share { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.share a.btn { text-decoration: none; display: inline-block; }
+.share-block { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+
 /* スマホでは詰めて、半紙とおぜんが1画面に収まるように */
 @media (max-width: 520px) {
   .wrap { gap: 8px; padding-block: 8px 24px; }
@@ -515,6 +523,6 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
   <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
 </div>
 
-<script src="kanji-data.js?v=202610201751" charset="utf-8"></script>
-<script src="firebase-config.js?v=202610201751" charset="utf-8"></script>
-<script src="app.js?v=202610201751" charset="utf-8"></script>
+<script src="kanji-data.js?v=202610201906" charset="utf-8"></script>
+<script src="firebase-config.js?v=202610201906" charset="utf-8"></script>
+<script src="app.js?v=202610201906" charset="utf-8"></script>

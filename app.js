@@ -257,11 +257,13 @@
       stage.style.height = (S + gap + trayH) + "px";
       Object.assign(board.style, { left: L.bx + "px", width: S + "px", height: S + "px" });
       Object.assign(tray.style, { top: L.trayTop + "px", height: trayH + "px" });
+      const sw = stage.querySelector(".stampwrap");
+      if (sw) Object.assign(sw.style, { left: L.bx + "px", width: S + "px", height: S + "px" });
       st.pieces.forEach(placeEl);
     }
 
     function clearPieces() {
-      stage.querySelectorAll(".piece").forEach((e) => e.remove());
+      stage.querySelectorAll(".piece, .stampwrap").forEach((e) => e.remove());
       st.pieces = [];
     }
 
@@ -427,8 +429,13 @@
       const rank = rankOf(score, st.kanji.c);
       setTimeout(() => {
         board.insertAdjacentHTML("beforeend",
-          boardSvg(`<g class="ghost">${pathsOf(st.kanji, allIdx(st.kanji))}</g>`, "ghostlayer") +
-          `<div class="stamp"><div><b style="font-size:${L.S * 0.09}px">${rank[0]}</b><b style="font-size:${L.S * 0.06}px">${score}点</b></div></div>`);
+          boardSvg(`<g class="ghost">${pathsOf(st.kanji, allIdx(st.kanji))}</g>`, "ghostlayer"));
+        // 判子は画より手前に出す（半紙の外に、半紙と同じ大きさの透明な層を重ねる）
+        const wrap = document.createElement("div");
+        wrap.className = "stampwrap";
+        Object.assign(wrap.style, { left: L.bx + "px", width: L.S + "px", height: L.S + "px" });
+        wrap.innerHTML = `<div class="stamp"><div><b style="font-size:${L.S * 0.09}px">${rank[0]}</b><b style="font-size:${L.S * 0.06}px">${score}点</b></div></div>`;
+        stage.appendChild(wrap);
         st.ghost = board.querySelector("svg.ghostlayer");
         st.ghost.style.opacity = "0";
         st.ghost.style.transition = "opacity .4s";
@@ -666,6 +673,120 @@
     return `<div class="sheet ${size}">${cells}<div class="seal">${total}</div></div>`;
   }
 
+  // ======================================================================
+  // 共有（自分の四字熟語の画像と、Xへの投稿）
+  // ======================================================================
+  const SITE_URL = "https://kassann34.github.io/henohenomojimoji/";
+  const Share = (() => {
+    /** 縦長の半紙に4字を並べた共有用の画像（1080×1350）を作る */
+    async function makeImage(items, info) {
+      // 日本語のウェブフォントは使った字の分だけ読み込まれるので、画像に描く字を先に読み込んでおく
+      const label = `合計 ${info.total}点・${info.rank}`, title = "へのへのもじもじ　漢字福笑い";
+      try {
+        await Promise.all([
+          document.fonts.load(`54px "Yuji Syuku"`, label + title + info.total),
+          document.fonts.load(`700 34px "Zen Kaku Gothic New"`, "存在しない四字熟語"),
+          document.fonts.load(`30px "Zen Kaku Gothic New"`, info.extra || "人中位"),
+        ]);
+      } catch (e) {}
+      const W = 1080, H = 1350;
+      const cv = document.createElement("canvas");
+      cv.width = W; cv.height = H;
+      const g = cv.getContext("2d");
+      const css = getComputedStyle(document.documentElement);
+      const v = (name, d) => css.getPropertyValue(name).trim() || d;
+      const display = `"Yuji Syuku", "Hiragino Mincho ProN", serif`, body = `"Zen Kaku Gothic New", "Hiragino Sans", sans-serif`;
+      g.fillStyle = v("--kon", "#1d2540");
+      g.fillRect(0, 0, W, H);
+      g.textAlign = "center";
+      g.fillStyle = v("--kin", "#d9b45a");
+      g.font = `700 34px ${body}`;
+      g.fillText("存在しない四字熟語", W / 2, 84);
+      // 半紙
+      const cell = 214, padX = 36, padTop = 40, padBot = 64;
+      const sw = cell + padX * 2, sh = padTop + cell * items.length + padBot, sx = (W - sw) / 2, sy = 120;
+      g.save();
+      g.shadowColor = "rgba(0,0,0,.45)"; g.shadowBlur = 40; g.shadowOffsetY = 16;
+      g.fillStyle = "#f5f3ec";
+      g.fillRect(sx, sy, sw, sh);
+      g.restore();
+      items.forEach((it, i) => {
+        const k = byChar(it.c);
+        if (!k) return;
+        const groups = groupsFor(k, "strokes");
+        const pos = posList(it.pos, groups.length);
+        g.save();
+        g.beginPath(); g.rect(sx, sy + padTop + i * cell - 6, sw, cell + 12); g.clip();
+        g.translate(sx + padX, sy + padTop + i * cell);
+        g.scale(cell / VB, cell / VB);
+        g.lineWidth = 4.4; g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = "#1b1b1f";
+        for (let gi = 0; gi < groups.length; gi++) {
+          if (!validPos(pos[gi])) continue;
+          const bb = measure(k, groups[gi]);
+          g.save();
+          g.translate(pos[gi][0] - bb.x, pos[gi][1] - bb.y);
+          for (const si of groups[gi]) g.stroke(new Path2D(k.strokes[si]));
+          g.restore();
+        }
+        g.restore();
+      });
+      // 落款（合計点）
+      g.save();
+      g.translate(sx + sw - 70, sy + sh - 34);
+      g.rotate(-0.07);
+      g.strokeStyle = "#c8372d"; g.lineWidth = 4; g.strokeRect(-52, -24, 104, 46);
+      g.fillStyle = "#c8372d"; g.font = `34px ${display}`; g.textBaseline = "middle";
+      g.fillText(String(info.total), 0, 0);
+      g.restore();
+      // 下の文字
+      const by = sy + sh + 74;
+      g.fillStyle = v("--head", "#f5f3ec");
+      g.font = `400 54px ${display}`;
+      g.fillText(label, W / 2, by);
+      g.fillStyle = v("--muted", "#a3a8bd");
+      g.font = `400 30px ${body}`;
+      if (info.extra) g.fillText(info.extra, W / 2, by + 50);
+      g.fillStyle = v("--head", "#f5f3ec");
+      g.font = `400 40px ${display}`;
+      g.fillText(title, W / 2, H - 70);
+      return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("toBlob"))), "image/png"));
+    }
+
+    const textOf = (info) => `へのへのもじもじで、存在しない四字熟語「${info.chars}」ができました。合計${info.total}点（${info.rank}）${info.extra ? "・" + info.extra : ""} #へのへのもじもじ`;
+
+    /** el に「画像で共有」「Xでポスト」のボタンを置く。info: { chars, total, rank, extra } */
+    function attach(el, items, info) {
+      if (!el || el.dataset.ready) return;
+      el.dataset.ready = "1";
+      const x = `https://x.com/intent/post?text=${encodeURIComponent(textOf(info))}&url=${encodeURIComponent(SITE_URL)}`;
+      el.innerHTML = `<button type="button" class="btn small" data-share="img">画像で共有</button>
+        <a class="btn small" href="${x}" target="_blank" rel="noopener">Xでポスト</a>
+        <span class="notice" data-share="msg" hidden></span>`;
+      const msg = (t) => { const m = el.querySelector('[data-share="msg"]'); m.textContent = t; m.hidden = !t; };
+      // 押した瞬間に共有メニューを開けるよう、画像は先に作っておく
+      let blob = null;
+      const ready = makeImage(items, info).then((b) => (blob = b)).catch(() => null);
+      const download = () => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `henohenomojimoji-${info.chars}.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        msg("画像を保存しました");
+      };
+      el.querySelector('[data-share="img"]').addEventListener("click", async () => {
+        if (!blob) await ready;
+        if (!blob) { msg("画像を作れませんでした"); return; }
+        const file = new File([blob], `henohenomojimoji-${info.chars}.png`, { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], text: `${textOf(info)} ${SITE_URL}` }); msg(""); }
+          catch (e) { if (e && e.name !== "AbortError") download(); }
+        } else download();
+      });
+    }
+    return { attach, makeImage };
+  })();
+
   const SetPlay = (() => {
     let s = null; // { chars, opts, items, cb, finished }
 
@@ -710,9 +831,11 @@
             <div class="yoji-total"><span>合計</span><b>${total}</b><span>/ ${SET_SIZE * 100}点</span></div>
             <div class="yoji-rank">${rank[0]}</div>
             <p class="note">${rank[1]}</p>
+            <div class="share" id="shareSolo"></div>
           </div>
         </div>`;
       $("yojiPanel").hidden = false;
+      Share.attach($("shareSolo"), s.items, { chars: s.items.map((it) => it.c).join(""), total, rank: rank[0] });
       setActions(s.cb.finalActions ? s.cb.finalActions() : []);
       s.cb.onDone && s.cb.onDone(s.items, total);
     }
@@ -1211,6 +1334,7 @@
               <div class="yoji-total"><b>${win.total}</b><span>/ ${SET_SIZE * 100}点</span></div>
             </div>
           </div>
+          ${rows.some((r) => r.id === pid) ? `<div class="share-block"><span class="notice">あなたの四字熟語を共有</span><div class="share" id="shareOnline"></div></div>` : ""}
           <ol class="ranking">
             ${rows.map((r) => `<li><span class="rk">${r.rank}位</span>${iconHtml(r, "sm")}
               <span class="nm">${r.id === pid ? "あなた" : ""}<small>${r.items.map((it) => `${esc(it.c)} ${it.score}`).join("・")}</small></span>
@@ -1222,6 +1346,11 @@
               <figcaption><span class="who">${iconHtml(r, "sm")}${r.id === pid ? " あなた" : ""}</span><span class="pt">${r.total}点・${r.rank}位</span></figcaption></figure>`).join("")}</div>` : ""}
         </div>` : "");
       $("onlinePanel").hidden = false;
+      const mine = rows.find((r) => r.id === pid);
+      if (mine) Share.attach($("shareOnline"), sheetItems(mine), {
+        chars: mine.items.map((it) => it.c).join(""), total: mine.total, rank: yojiRank(mine.total)[0],
+        extra: rows.length > 1 ? `${rows.length}人中${mine.rank}位` : "",
+      });
       setStatus("結果発表");
       setTimer("");
       if (isHost()) setActionsOnce("final-host", [["ロビーへ戻る", "primary", () => o.be.update(`rooms/${o.code}/game`, { phase: "lobby" })]]);
