@@ -48,10 +48,107 @@
     return bb;
   }
 
-  function scoreOf(positions, bbs) {
-    const d = positions.reduce((s, [x, y], i) => s + Math.hypot(x - bbs[i].x, y - bbs[i].y), 0) / positions.length;
-    return Math.round(100 * Math.max(0, 1 - d / 28));
+  // ---------- 採点（シルエット比較） ----------
+  // お手本と並べた結果をそれぞれ白黒画像にして、墨どうしの距離を測る。
+  // ・どのパーツをどこに置いたかは問わない（晶の「日」を入れ替えても満点になる）
+  // ・字全体の重心を合わせてから比べるので、半紙の上で全体がずれただけなら減点しない
+  // d（墨どうしの平均距離、KanjiVG単位。tol 以内の細かい字形の違いは数えない）→ 点数 = 100·exp(-(d/scale)^power)
+  // 目安（35字で試算）: 各パーツ±3ずれ→約97点、±8ずれ→約85点、±15ずれ→約45点、でたらめ→約15点
+  const SIL = { margin: 30, px: 160, stroke: 4.4, tol: 1.5, scale: 2.0, power: 1.5 };
+  const SIL_SCALE = SIL.px / (VB + SIL.margin * 2);
+
+  /** パーツを描いた墨のマスク（1 = 墨）と重心を返す。offset は全体をずらす量（KanjiVG単位） */
+  function inkMask(kanji, groups, positions, offset) {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = SIL.px;
+    const g = cv.getContext("2d");
+    g.lineWidth = SIL.stroke;
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    g.strokeStyle = "#000";
+    groups.forEach((idx, i) => {
+      g.setTransform(SIL_SCALE, 0, 0, SIL_SCALE, (SIL.margin + offset[0]) * SIL_SCALE, (SIL.margin + offset[1]) * SIL_SCALE);
+      if (positions) {
+        const bb = measure(kanji, idx);
+        g.translate(positions[i][0] - bb.x, positions[i][1] - bb.y);
+      }
+      idx.forEach((s) => g.stroke(new Path2D(kanji.strokes[s])));
+    });
+    const px = g.getImageData(0, 0, SIL.px, SIL.px).data;
+    const mask = new Uint8Array(SIL.px * SIL.px);
+    let n = 0, sx = 0, sy = 0;
+    for (let i = 0; i < mask.length; i++) {
+      if (px[i * 4 + 3] > 96) {
+        mask[i] = 1;
+        n++;
+        sx += i % SIL.px;
+        sy += Math.floor(i / SIL.px);
+      }
+    }
+    return { mask, n, cx: n ? sx / n : 0, cy: n ? sy / n : 0 };
   }
+
+  /** 各マスから最も近い墨までの距離（ピクセル、3-4 チャムファー距離） */
+  function distanceMap(mask) {
+    const W = SIL.px, INF = 1e9;
+    const d = new Float32Array(mask.length);
+    for (let i = 0; i < d.length; i++) d[i] = mask[i] ? 0 : INF;
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (x > 0) d[i] = Math.min(d[i], d[i - 1] + 3);
+      if (y > 0) {
+        d[i] = Math.min(d[i], d[i - W] + 3);
+        if (x > 0) d[i] = Math.min(d[i], d[i - W - 1] + 4);
+        if (x < W - 1) d[i] = Math.min(d[i], d[i - W + 1] + 4);
+      }
+    }
+    for (let y = W - 1; y >= 0; y--) for (let x = W - 1; x >= 0; x--) {
+      const i = y * W + x;
+      if (x < W - 1) d[i] = Math.min(d[i], d[i + 1] + 3);
+      if (y < W - 1) {
+        d[i] = Math.min(d[i], d[i + W] + 3);
+        if (x < W - 1) d[i] = Math.min(d[i], d[i + W + 1] + 4);
+        if (x > 0) d[i] = Math.min(d[i], d[i + W - 1] + 4);
+      }
+    }
+    for (let i = 0; i < d.length; i++) d[i] /= 3;
+    return d;
+  }
+
+  function meanDist(mask, dmap) {
+    let s = 0, n = 0;
+    for (let i = 0; i < mask.length; i++) if (mask[i]) { s += Math.max(0, dmap[i] - SIL.tol * SIL_SCALE); n++; } // 細かい字形の違い（tol 以内）は数えない
+    return n ? s / n : Infinity;
+  }
+
+  const modelCache = new Map();
+  /** 並べ方を採点する（0〜100）。positions[i] はパーツ i の左上（KanjiVG単位） */
+  function scoreArrangement(kanji, mode, positions) {
+    const groups = groupsFor(kanji, mode);
+    const key = kanji.c + ":" + mode;
+    if (!modelCache.has(key)) {
+      const whole = inkMask(kanji, [allIdx(kanji)], null, [0, 0]);
+      modelCache.set(key, {
+        whole, dmap: distanceMap(whole.mask),
+        pieces: groups.map((idx) => inkMask(kanji, [idx], null, [0, 0]).mask),
+      });
+    }
+    const model = modelCache.get(key);
+    const first = inkMask(kanji, groups, positions, [0, 0]);
+    const shift = [(model.whole.cx - first.cx) / SIL_SCALE, (model.whole.cy - first.cy) / SIL_SCALE];
+    const mine = inkMask(kanji, groups, positions, shift);
+    const mineD = distanceMap(mine.mask);
+    // パーツごとに距離を測って平均する（小さいパーツも大きいパーツと同じ重さ）
+    //  ・自分の各パーツ → お手本の墨：余計なところに置いたパーツを減点
+    //  ・お手本の各パーツ → 自分の墨：あるべき場所に墨がないのを減点
+    // どちらも「どのパーツか」は問わず墨全体と比べるので、同じ形の部品の入れ替えは減点されない
+    const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+    const extra = avg(groups.map((idx, i) => meanDist(inkMask(kanji, [idx], [positions[i]], shift).mask, model.dmap)));
+    const missing = avg(model.pieces.map((m) => meanDist(m, mineD)));
+    const d = (extra + missing) / 2 / SIL_SCALE;
+    return Math.round(100 * Math.exp(-Math.pow(d / SIL.scale, SIL.power)));
+  }
+
   function rankOf(score, c) {
     return score >= 90 ? ["名人", `どこから見ても「${c}」。お見事です。`]
       : score >= 75 ? ["達筆", "ほぼ完璧。ちょっとの癖が味になっています。"]
@@ -235,7 +332,7 @@
       });
       if (cover) requestAnimationFrame(() => cover.classList.add("off"));
       const positions = st.pieces.map((p) => [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
-      const score = scoreOf(positions, st.pieces.map((p) => p.bb));
+      const score = scoreArrangement(st.kanji, st.mode, positions);
       const rank = rankOf(score, st.kanji.c);
       setTimeout(() => {
         board.insertAdjacentHTML("beforeend",
@@ -376,6 +473,7 @@
   }
 
   const params = new URLSearchParams(location.search);
+  if (params.get("debug") === "1") window.HHMM = { DATA, groupsFor, measure, scoreArrangement, SIL };
   const useMock = params.get("mock") === "1";
   let backendPromise = null;
   function getBackend() {
