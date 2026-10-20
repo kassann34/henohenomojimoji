@@ -12,4 +12,12 @@
 //   messagingSenderId: "000000000000",
 //   appId: "1:000000000000:web:xxxxxxxx"
 // };
-window.FIREBASE_CONFIG = null;
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDzFJkIPUTXJCP_jEXs0STI4hmkGPGn_IE",
+  authDomain: "henohenomojimoji-a4325.firebaseapp.com",
+  databaseURL: "https://henohenomojimoji-a4325-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "henohenomojimoji-a4325",
+  storageBucket: "henohenomojimoji-a4325.firebasestorage.app",
+  messagingSenderId: "582811027084",
+  appId: "1:582811027084:web:f3984becf787ef2750dda9",
+};
