@@ -123,14 +123,16 @@ h1 small { font-size: 13px; color: var(--kin); letter-spacing: .2em; margin-left
   background: var(--tray-bg);
 }
 #tray span { position: absolute; left: 10px; top: 6px; font-size: 11px; letter-spacing: .14em; color: var(--muted); }
-.piece { position: absolute; cursor: grab; touch-action: none; pointer-events: none; }
-.piece svg { width: 100%; height: 100%; overflow: visible; display: block; pointer-events: auto; transition: transform .15s ease-out; }
+/* iPad（Safari）で跡が残らないよう、画ごとに独立した層で描き、影の効果は使わない */
+.piece { position: absolute; cursor: grab; touch-action: none; pointer-events: none; transform: translateZ(0); will-change: left, top; }
+.piece svg { width: 100%; height: 100%; overflow: hidden; display: block; pointer-events: auto; transition: transform .15s ease-out; will-change: transform; }
 .piece.offboard svg { transform: scale(.6); } /* おぜんの上では小さく、半紙に乗せると原寸 */
 .piece path, svg.big path { fill: none; stroke: var(--sumi); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
 .piece.onboard path { stroke: var(--sumi); }
 .piece.offboard path { stroke: var(--tray-ink); }
-.piece.dragging { cursor: grabbing; z-index: 50; filter: drop-shadow(0 6px 8px #0008); }
-.piece.hiddenplace { opacity: 0; pointer-events: none; }
+.piece.dragging { cursor: grabbing; z-index: 50; }
+.piece.dragging path { stroke-width: 5; }
+.piece.hiddenplace { visibility: hidden; pointer-events: none; }
 .piece.reveal { transition: opacity .6s; }
 svg.big .ghost path { stroke: var(--shu); stroke-width: 3; opacity: .35; }
 
@@ -468,6 +470,6 @@ header .seg button { padding: 5px 12px; font-size: 13px; }
   <footer>漢字のデータ：<a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）</footer>
 </div>
 
-<script src="kanji-data.js?v=202610201554" charset="utf-8"></script>
-<script src="firebase-config.js?v=202610201554" charset="utf-8"></script>
-<script src="app.js?v=202610201554" charset="utf-8"></script>
+<script src="kanji-data.js?v=202610201647" charset="utf-8"></script>
+<script src="firebase-config.js?v=202610201647" charset="utf-8"></script>
+<script src="app.js?v=202610201647" charset="utf-8"></script>
