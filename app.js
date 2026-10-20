@@ -497,7 +497,6 @@
   // 3. セット（4字で1セット。最後に自分の作った字を四字熟語として並べる）
   // ======================================================================
   const SET_SIZE = 4;
-  const FIRST_KANJI = "顔";
 
   /** ランダムに重ならない4字を選ぶ（first を指定すると1字目に固定） */
   function randomChars(first) {
@@ -607,10 +606,8 @@
   // 4a. Solo
   // ======================================================================
   const Solo = (() => {
-    let firstSet = true;
     function newSet() {
-      const chars = randomChars(firstSet ? FIRST_KANJI : null);
-      firstSet = false;
+      const chars = randomChars();
       SetPlay.begin(chars, settings, {
         finalActions: () => [["もう一セット", "primary", newSet]],
       });
@@ -837,7 +834,7 @@
       const r = o.room;
       if (!r || !isHost()) return;
       const n = ((r.round && r.round.n) || 0) + 1;
-      const chars = randomChars(n === 1 ? FIRST_KANJI : null);
+      const chars = randomChars();
       await o.be.update(`rooms/${o.code}`, {
         round: { n, chars: chars.join(""), mode: settings.mode, blind: settings.blind },
         // 古い結果は消して部屋を軽く保つ
